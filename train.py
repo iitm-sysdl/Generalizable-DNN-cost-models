@@ -57,15 +57,15 @@ elif args.model=="mv2":
 elif args.model=="mv1":
     from models.mobilenetv1 import MobileNet
     net = MobileNet()
-elif args.model="resnet34":
+elif args.model=="resnet34":
     net=torchvision.models.resnet34()
-elif args.model="resnet18":
+elif args.model=="resnet18":
     net=torchvision.models.resnet18()
 elif args.model=="resnet50":
-    net=torchvision.models.resnet50(pretrained=True)
-elif args.model="resnet101":
+    net=torchvision.models.resnet50()
+elif args.model=="resnet101":
     net=torchvision.models.resnet101()
-elif args.model="resnet152":
+elif args.model=="resnet152":
     net=torchvision.models.resnet152()
 elif args.model=="squeeze":
     from models.squeezenet import SqueezeNet
@@ -111,11 +111,11 @@ def test(epoch):
             #torch.cuda.synchronize()
             step_time = time.time() - curr_time
             freq = psutil.cpu_freq().current
-            temp = psutil.sensors_temperatures()
+            #temp = psutil.sensors_temperatures()
             writer.add_scalar('Frequency:', freq, batch_idx)
             progress_bar(batch_idx, len(val_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'% (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-            for var in temp['coretemp']:
-                writer.add_scalar(var.label, var.current, batch_idx)
+            #for var in temp['coretemp']:
+            #    writer.add_scalar(var.label, var.current, batch_idx)
            #     if var.current >= 85.0:
            #         flag = True
            #         flag2 = True
