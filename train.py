@@ -30,6 +30,7 @@ parser.add_argument('--valdir', type=str, required=True)
 parser.add_argument('--numgpu', type=int)
 parser.add_argument('--name', type=str, required=True)
 parser.add_argument('--batchsize', type=int, required=True)
+parser.add_argument('--numepochs', type=int, required=True)
 args = parser.parse_args()
 writer = SummaryWriter(comment = args.name)
 #------------------------------------------------------------Data Loading-------------------------------------------
@@ -56,8 +57,16 @@ elif args.model=="mv2":
 elif args.model=="mv1":
     from models.mobilenetv1 import MobileNet
     net = MobileNet()
-elif args.model=="resnet":
+elif args.model="resnet34":
+    net=torchvision.models.resnet34()
+elif args.model="resnet18":
+    net=torchvision.models.resnet18()
+elif args.model=="resnet50":
     net=torchvision.models.resnet50(pretrained=True)
+elif args.model="resnet101":
+    net=torchvision.models.resnet101()
+elif args.model="resnet152":
+    net=torchvision.models.resnet152()
 elif args.model=="squeeze":
     from models.squeezenet import SqueezeNet
     net = SqueezeNet()
@@ -134,6 +143,7 @@ def test(epoch):
 
 
 #-------------------------------------Main Part---------------------
-test(0)
+for epoch in range(args.numepochs):
+	test(epoch)
 #---------------------------------------
 
