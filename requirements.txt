@@ -1,0 +1,8 @@
+torch 
+torchvision
+psutil
+lmdb
+msgpack
+tqdm
+pyarrow==0.15.0
+tensorboard
