@@ -76,4 +76,5 @@ for i in range(numSamples):
 import pickle
 with open("Networks", "wb") as f:
     pickle.dump(masterNetwork, f)
+with open("Features", "wb") as f:    
     pickle.dump(masterFeatures, f)
