@@ -51,24 +51,24 @@ for i in range(numSamples):
                 operator = random.choice(redOperatorsList3)
             else:
                 operator = random.choice(redOperatorsList1)
-        
+
         if operator == "nn.Conv2d":
             inC = outC
             outC=random.choice(channelList)
             k=random.choice(kernelList)
             network.append(nn.Conv2d(inC, outC, k,  stride, paddingDict[k], bias=False))
             fixedEmbedding.append([1, 0, 0, inDim, inDim, inC, outC, k, stride, paddingDict[k], inDim*inDim*outC*inC*k*k])
-        
+            prevReLU=False
         elif operator == "nn.MaxPool2d":
             network.append(nn.MaxPool2d(2,2))
             fixedEmbedding.append([0, 1, 0, inDim, inDim/2, outC, outC, k, stride, 0, inDim*inDim*outC])
             inDim = inDim/2
             numMaxPool = numMaxPool-1
-
+            prevReLU=False
         else:
             prevReLU=True
             network.append(nn.ReLU(inplace=True))
-            fixedEmbedding.append([0, 0, 1, inDim, inDim, outC, outC, 0, 0, 0, inDim*inDim*outC]) 
+            fixedEmbedding.append([0, 0, 1, inDim, inDim, outC, outC, 0, 0, 0, inDim*inDim*outC])
 
     masterNetwork.append(network)
     masterFeatures.append(fixedEmbedding)
