@@ -44,11 +44,13 @@ for i in range(numSamples):
         if numMaxPool > 0:
             if prevReLU == True:
                 operator = random.choice(redOperatorsList2)
+                prevReLU=False
             else:
                 operator = random.choice(availableOperatorsList)
         else:
             if prevReLU == True:
                 operator = random.choice(redOperatorsList3)
+                prevReLU=False
             else:
                 operator = random.choice(redOperatorsList1)
 
@@ -58,13 +60,11 @@ for i in range(numSamples):
             k=random.choice(kernelList)
             network.append(nn.Conv2d(inC, outC, k,  stride, paddingDict[k], bias=False))
             fixedEmbedding.append([1, 0, 0, inDim, inDim, inC, outC, k, stride, paddingDict[k], inDim*inDim*outC*inC*k*k])
-            prevReLU=False
         elif operator == "nn.MaxPool2d":
             network.append(nn.MaxPool2d(2,2))
             fixedEmbedding.append([0, 1, 0, inDim, inDim/2, outC, outC, k, stride, 0, inDim*inDim*outC])
             inDim = inDim/2
             numMaxPool = numMaxPool-1
-            prevReLU=False
         else:
             prevReLU=True
             network.append(nn.ReLU(inplace=True))
