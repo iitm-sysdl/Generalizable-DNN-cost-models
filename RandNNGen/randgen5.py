@@ -9,6 +9,7 @@ import random
 from random import sample
 from random import randrange
 import torch.backends.cudnn as cudnn
+import pickle
 
 numLayers = 5
 #numSamples=10
@@ -19,6 +20,8 @@ numSamples = 10000
 # bfile = open(name,'a')
 masterNetwork = []
 masterFeatures = []
+opList = []
+opFeatures = []
 availableOperatorsList = ['nn.Conv2d', 'nn.MaxPool2d', 'nn.ReLU']
 redOperatorsList1 = ['nn.Conv2d', 'nn.ReLU']
 redOperatorsList2 = ['nn.Conv2d', 'nn.MaxPool2d']
@@ -38,7 +41,9 @@ for i in range(numSamples):
     inC=3
     outC=random.choice(channelList)
     k=random.choice(kernelList)
-    network.append(nn.Conv2d(inC, outC, k,  stride, paddingDict[k], bias=False))
+    #network.append(nn.Conv2d(inC, outC, k,  stride, paddingDict[k], bias=False))
+    opList.append("nn.Conv2d")
+    opFeatures.append([inC, outC, k, stride, paddingDict[k], 1, 1, False ])
     fixedEmbedding.append([1, 0, 0, inDim, inDim, inC, outC, k, stride, paddingDict[k], inDim*inDim*outC*inC*k*k])
     for j in range(4):
         if numMaxPool > 0:
@@ -58,23 +63,37 @@ for i in range(numSamples):
             inC = outC
             outC=random.choice(channelList)
             k=random.choice(kernelList)
-            network.append(nn.Conv2d(inC, outC, k,  stride, paddingDict[k], bias=False))
+            #network.append(nn.Conv2d(inC, outC, k,  stride, paddingDict[k], bias=False))
+            opList.append("nn.Conv2d")
+            opFeatures.append([inC, outC, k, stride, paddingDict[k], 1, 1, False])
             fixedEmbedding.append([1, 0, 0, inDim, inDim, inC, outC, k, stride, paddingDict[k], inDim*inDim*outC*inC*k*k])
         elif operator == "nn.MaxPool2d":
             network.append(nn.MaxPool2d(2,2))
             fixedEmbedding.append([0, 1, 0, inDim, inDim/2, outC, outC, k, stride, 0, inDim*inDim*outC])
+            opList.append("nn.MaxPool2d")
+            opFeatures.append([2,2])
             inDim = inDim/2
             numMaxPool = numMaxPool-1
         else:
             prevReLU=True
             network.append(nn.ReLU(inplace=True))
+            opList.append("nn.ReLU")
+            opFeatures.append([True])
             fixedEmbedding.append([0, 0, 1, inDim, inDim, outC, outC, 0, 0, 0, inDim*inDim*outC])
 
     masterNetwork.append(network)
     masterFeatures.append(fixedEmbedding)
 
-import pickle
-with open("Networks", "wb") as f:
-    pickle.dump(masterNetwork, f)
-with open("Features", "wb") as f:    
+#with open("Networks", "wb") as f:
+#    pickle.dump(masterNetwork, f)
+
+with open ("oplist.csv", "w") as f:
+    writer = csv.writer(f)
+    writer.writerow(opList)
+
+with open ("opFeatures.csv", "w") as f:
+    writer = csv.writer(f)
+    writer.writerow(opFeatures)
+
+with open("Features", "wb") as f:
     pickle.dump(masterFeatures, f)
