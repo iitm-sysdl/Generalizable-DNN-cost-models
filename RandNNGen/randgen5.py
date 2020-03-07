@@ -13,7 +13,7 @@ import pickle
 
 numLayers = 5
 #numSamples=10
-numSamples = 10000
+numSamples = 10
 
 
 #name =  "20layerdataconv_" + platform.node() + ".csv"
@@ -68,7 +68,7 @@ for i in range(numSamples):
             opFeatures.append([inC, outC, k, stride, paddingDict[k], 1, 1, False])
             fixedEmbedding.append([1, 0, 0, inDim, inDim, inC, outC, k, stride, paddingDict[k], inDim*inDim*outC*inC*k*k])
         elif operator == "nn.MaxPool2d":
-            network.append(nn.MaxPool2d(2,2))
+            #network.append(nn.MaxPool2d(2,2))
             fixedEmbedding.append([0, 1, 0, inDim, inDim/2, outC, outC, k, stride, 0, inDim*inDim*outC])
             opList.append("nn.MaxPool2d")
             opFeatures.append([2,2])
@@ -76,14 +76,13 @@ for i in range(numSamples):
             numMaxPool = numMaxPool-1
         else:
             prevReLU=True
-            network.append(nn.ReLU(inplace=True))
+            #network.append(nn.ReLU(inplace=True))
             opList.append("nn.ReLU")
             opFeatures.append([True])
             fixedEmbedding.append([0, 0, 1, inDim, inDim, outC, outC, 0, 0, 0, inDim*inDim*outC])
 
-    masterNetwork.append(network)
+    #masterNetwork.append(network)
     masterFeatures.append(fixedEmbedding)
-
 #with open("Networks", "wb") as f:
 #    pickle.dump(masterNetwork, f)
 
