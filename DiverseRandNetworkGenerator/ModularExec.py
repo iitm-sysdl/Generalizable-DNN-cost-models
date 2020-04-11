@@ -34,6 +34,7 @@ class DepthwiseConv2d(nn.Module):
         x = self.conv(x)
         return x
 
+
 paddingDict ={1:0, 3:1, 5:2, 7:3}
 
 for i in range(len(data)):
@@ -55,6 +56,9 @@ for i in range(len(data)):
                     x=F.max_pool2d(x, kernel_size=2, stride=2)
                 elif layer[0]=='relu':
                     x=F.relu(x)
+                elif layer[o] == 'residualBlock':
+
+
         timeL.append(prof.self_cpu_time_total)
     mean_time = statistics.mean(timeL)
     vari_time = statistics.stdev(timeL)
