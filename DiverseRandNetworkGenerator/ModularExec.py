@@ -16,7 +16,7 @@ data = list(csv_reader)
 file1.close()
 
 file2 = open('execTime.csv', 'w')
-expEpoch = 3    
+expEpoch = 30
 
 class Conv2d(nn.Module):
     def __init__(self, in_planes, out_planes, kernel, padding):
@@ -46,9 +46,11 @@ for i in range(len(data)):
         with torch.autograd.profiler.profile() as prof:
             for k in range(len(layerFeatures)):  
                 layer = layerFeatures[k]
-                if layer[0]=='conv':
+                if layer[0]=='conv' or layer[0] == 'rconv':
+                    if layer[0] == 'rconv':
+                        y = x 
                     net = Conv2d(int(layer[2]), int(layer[3]), int(layer[4]), paddingDict[int(layer[4])])
-                    x = net(x)
+                    x = net(x)            
                 elif layer[0]=='dconv':
                     net = DepthwiseConv2d(int(layer[2]), int(layer[3]), int(layer[4]), paddingDict[int(layer[4])])
                     x = net(x)
@@ -56,8 +58,8 @@ for i in range(len(data)):
                     x=F.max_pool2d(x, kernel_size=2, stride=2)
                 elif layer[0]=='relu':
                     x=F.relu(x)
-                elif layer[o] == 'residualBlock':
-
+                elif layer[0] == 'add':
+                    x = x + y
 
         timeL.append(prof.self_cpu_time_total)
     mean_time = statistics.mean(timeL)
@@ -65,4 +67,3 @@ for i in range(len(data)):
     print(mean_time, vari_time)
     file2.write(str(mean_time)+ ',' + str(vari_time) + '\n')
 file2.close()
-

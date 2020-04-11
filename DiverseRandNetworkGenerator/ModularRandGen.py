@@ -9,7 +9,7 @@ from random import sample
 from random import randrange
 import pickle
 
-maxNumLayers = 20 
+maxNumLayers = 20
 numSamples = 10000
 
 masterFeatures = []
@@ -27,13 +27,17 @@ stride=1
 file1 = open("netFeatures.csv",'w')
 file2 = open("Embeddings.csv", 'w')
 
-def convolution(outC, channelList, kernelList, inDim, stride, padding, netFeatures, netEmbedding, depth):
+def convolution(outC, channelList, kernelList, inDim, stride, padding, netFeatures, netEmbedding, depth, firstResidual):
     inC = outC
-    outC=random.choice(channelList)
+    if firstResidual==False and depth==False:
+        outC=random.choice(channelList)
     k=random.choice(kernelList)
     if(depth):
         netFeatures.append(['dconv', inDim, inC, outC, k])
         netEmbedding.append([0, 1, 0, 0, 0, inDim, inDim, inC, outC, k, stride, padding, inDim*inDim*outC*k*k*2])
+    elif(firstResidual):
+        netFeatures.append(['rconv', inDim, inC, outC, k])
+        netEmbedding.append([1, 0, 0, 0, 0, inDim, inDim, inC, outC, k, stride, padding, inDim*inDim*outC*inC*k*k*2])
     else:
         netFeatures.append(['conv', inDim, inC, outC, k])
         netEmbedding.append([1, 0, 0, 0, 0, inDim, inDim, inC, outC, k, stride, padding, inDim*inDim*outC*inC*k*k*2])
@@ -79,21 +83,24 @@ for i in range(numSamples):
                 operator = random.choice(redOperatorsList1)
 
         if operator == "nn.Conv2d":
-            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, False)
+            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, False, False)
         elif operator == "nn.DepthConv":
-            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, True)
+            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, True, False)
         elif operator == "nn.Residual":
             identityChannel=outC
-            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, False)
+            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, False, True)
             prevReLU = relu(inDim, outC, netFeatures, netEmbedding)
-            outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, False)
-            prevReLU = relu(inDim, outC, netFeatures, netEmbedding)
+            # outC = convolution(outC, channelList, kernelList, inDim, stride, paddingDict[k], netFeatures, netEmbedding, False, False)
+            # prevReLU = relu(inDim, outC, netFeatures, netEmbedding)
+            #TODO: ResidualBlocks should have variable size -- currently fixed!
             netFeatures.append(['add', inDim, 0, 0, 0])
             netEmbedding.append([0, 0, 0, 0, 1, inDim, inDim, inC, outC, 0, 0, 0, inDim*inDim*outC])
         elif operator == "nn.MaxPool2d":
             inDim, numMaxPool = maxpool(inDim, numMaxPool, netFeatures, netEmbedding) 
         else:
             prevReLU = relu(inDim, outC, netFeatures, netEmbedding)
+    # print(netFeatures)
+    # print(netEmbedding)
     data=''
     for itr in netFeatures:
         for itr2 in itr:
@@ -108,6 +115,5 @@ for i in range(numSamples):
     data=data[:-1]
     data=data+'\n'
     file2.write(data)
-
 file1.close()
 file2.close()
