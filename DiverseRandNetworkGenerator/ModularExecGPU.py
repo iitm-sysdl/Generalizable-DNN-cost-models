@@ -9,7 +9,7 @@ import random
 from random import sample
 from random import randrange
 import pickle
-
+import time
 file1 = open('netFeatures.csv', 'r')
 csv_reader = csv.reader(file1)
 data = list(csv_reader)
@@ -71,10 +71,14 @@ for i in range(len(data)):
     timeL=[]
     x = torch.randn([1, 3, inDim, inDim])
     net = DiverseRandNetwork(layerFeatures, paddingDict)
+    x = x.to('cuda')
+    net = net.to('cuda')
     for l in range(expEpoch):
-        with torch.autograd.profiler.profile() as prof:
-            y = net(x)
-        timeL.append(prof.self_cpu_time_total)
+        start = time.time()
+        y = net(x)
+        torch.cuda.synchronize()
+        end = time.time()
+        timeL.append((end-start)*1000000)
     mean_time = statistics.mean(timeL)
     vari_time = statistics.stdev(timeL)
     print(mean_time, vari_time)
