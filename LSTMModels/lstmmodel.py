@@ -10,7 +10,7 @@ from keras.layers import Input
 from keras.layers import Concatenate
 
 import numpy as np
-from matplotlib import pyplot as plt 
+from matplotlib import pyplot as plt
 from numpy import genfromtxt
 from sklearn.utils import shuffle
 import csv
@@ -20,10 +20,10 @@ import math
 import sklearn
 from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot as plt
-import os 
+import os
 
 
-def create_features(subdir, latency_file, embeddings):
+def parse_features(subdir, latency_file, embeddings):
   Features = []
   maxLayer = 0
   maxFlops = 0
@@ -48,7 +48,7 @@ def create_features(subdir, latency_file, embeddings):
 
   numpyFeatures = np.ones((len(Features), maxLayer, 13))
   numpyFeatures = numpyFeatures*-1
-	
+
   for i in range(len(Features)):
     temp = Features[i]
     for j in range(len(temp)):
@@ -95,8 +95,54 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
   #plt.show()
   print("The R^2 Value for %s:"%(hardware), sklearn.metrics.r2_score(testy, testPredict[:,0]))
 
+def sample_hwrepresentation(net_dict, maxSamples):
+    mean_lat = []
+    sd_lat = []
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:5000,:,:] #Not required actually.. Simply doing
+        net_dict[key][1] = net_dict[key][1][:5000]
+        mean_lat.append(np.mean(net_dict[key][1]))
+        sd_lat.append(np.sd(net_dict[key][1]))
 
+    for i in range(-2,8): #This range might not be enough -- the range should be more generic when hardware increases
+        index_where = []
+        index = 0
 
+        for key in net_dict:
+            index_where.append(np.logical_and(net_dict[key][1] > mean_lat[index]+i*sd_lat[index], net_dict[key][1] <= mean_lat[index]+(i+1)*sd_lat[index]))
+            index += 1
+
+        for j in range(len(index_where)):
+            index_where[0] = np.intersect1d(index_where[j], index_where[j+1])
+
+        final_intersection = index_where[0]
+
+        if len(final_intersection) >= 4:
+            loop_index = 4
+        else:
+            loop_index = len(final_intersection)
+
+        hw_features_cncat = []
+
+        for key in net_dict:
+            hw_features_per_device = []
+            for j in range(loop_index):
+                hw_features_per_device.append(net_dict[key][1][final_intersection[j]])
+                net_dict[key][1] = np.delete(net_dict[key][1], final_intersection[j])
+                net_dict[key][2] = np.delete(net_dict[key][2], final_intersection[j])
+            hw_features_cncat.append(hw_features_per_device)
+
+        return final_intersection, hw_features_cncat
+
+def append_with_net_features(net_dict, hw_features_cncat):
+    new_lat_ft = []
+    appended_features = []
+    index = 0
+    for key in net_dict:
+        new_lat_ft = np.tile(hw_features_cncat[index], (net_dict[key][2].shape[0], net_dict[key][2].shape[1], 1))
+        temp = np.concatenate((net_dict[key][2], new_lat_ft), axis=2)
+        appended_features = np.concatenate((appended_features, temp), axis=0)
+        index += 1
 
 def main():
   list_val_dict = {}
@@ -114,15 +160,18 @@ def main():
     if val==True:
       print(execTime, embeddings)
       print(subdir)
-      list_val_dict[os.path.basename(subdir)] = create_features(subdir,execTime,embeddings)
+      list_val_dict[os.path.basename(subdir)] = parse_features(subdir,execTime,embeddings)
       val = False
       #print(os.path.basename(subdir), file)
 
   for key in list_val_dict:
     learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2])
 
+##### Write code to take all the hardware features, create a hold-out and learn and transfer for others
+## TODO
+
 if __name__ == '__main__':
   main()
-	
+
 
 
