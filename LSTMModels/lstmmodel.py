@@ -80,24 +80,48 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
   model.add(Dense(1))
   model.compile(loss='mean_squared_error', optimizer='adam')
   model.summary()
-  model.fit(trainf, trainy, epochs=800, batch_size=512, verbose=2)
+  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=2)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
   trainScore = math.sqrt(mean_squared_error(trainy, trainPredict[:,0]))
   print('Train Score: %f RMSE' % (trainScore))
   testScore = math.sqrt(mean_squared_error(testy, testPredict[:,0]))
+  r2_score = sklearn.metrics.r2_score(testy, testPredict[:,0])
   print('Test Score: %f RMSE' % (testScore))
+  plt.figure()
   plt.xlabel("Actual Latency")
   plt.ylabel("Predicted Latency")
   plt.scatter(testy, testPredict[:,0])
+  plt.title(hardware+' R2: '+str(r2_score))
   plt.savefig(hardware+'.png')
   #plt.show()
-  print("The R^2 Value for %s:"%(hardware), sklearn.metrics.r2_score(testy, testPredict[:,0]))
+  print("The R^2 Value for %s:"%(hardware), r2_score)
+  return model
+
+
+'''
+This function takes in the dictionary of hardware_names to its maxLayer, latency and features map
+net_dict[key][2] - refers to the network features for a hardware and
+net_dict[key][1] - refers to the latency for that hardware
+
+1. First determine the mean and std of the latencies for each hardware in the dictionary
+
+2. Sample from the distribution - i.e. from Mu-8*sigma to Mu+2*sigma, at each parts of the distribution, find all indices that intersect in all the hardwares considered here. For ex., if network no. 2374 falls between mu-1*sigma and mu for all the hardware devices in the dictionary, then add 2374 to the representation set for all the hardware
+
+3. Find maxSamples such networks that become the golden representation of the hardware
+
+4. Return the list of lists of maxSamples network representation for all hardwares and also the indices of the representation networks
+
+5. The indices will be used by any hardware not on the list to make and append it's representation
+TODO: Not using max samples for now - change
+'''
 
 def sample_hwrepresentation(net_dict, maxSamples):
     mean_lat = []
     sd_lat = []
+    final_indices = []
+    #Determining the Mean and Standard Deviation of Latencies
     for key in net_dict:
         net_dict[key][2] = net_dict[key][2][:5000,:,:] #Not required actually.. Simply doing
         net_dict[key][1] = net_dict[key][1][:5000]
@@ -130,9 +154,16 @@ def sample_hwrepresentation(net_dict, maxSamples):
                 hw_features_per_device.append(net_dict[key][1][final_intersection[j]])
                 net_dict[key][1] = np.delete(net_dict[key][1], final_intersection[j])
                 net_dict[key][2] = np.delete(net_dict[key][2], final_intersection[j])
+                final_indices.append(final_intersection[j])
             hw_features_cncat.append(hw_features_per_device)
 
-        return final_intersection, hw_features_cncat
+    return final_indices, hw_features_cncat
+
+'''
+Append the hardware representation with the available network representation in axis = 2 (3rd dimension)
+and also append all the hardwares together along axis = 0 (row dimension) to form a huge training set of multiple
+hardware devices
+'''
 
 def append_with_net_features(net_dict, hw_features_cncat):
     new_lat_ft = []
@@ -142,7 +173,62 @@ def append_with_net_features(net_dict, hw_features_cncat):
         new_lat_ft = np.tile(hw_features_cncat[index], (net_dict[key][2].shape[0], net_dict[key][2].shape[1], 1))
         temp = np.concatenate((net_dict[key][2], new_lat_ft), axis=2)
         appended_features = np.concatenate((appended_features, temp), axis=0)
+        appended_latencies = np.concatenate((appended_latencies, net_dict[key][1]), axis=0)
         index += 1
+    return appended_latencies, appended_features
+
+def learn_individual_models(list_val_dict):
+    for key in list_val_dict:
+      learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2])
+
+
+'''
+Holds out one hardware at a time and learns a combined model for the remaining hardware and tries to
+predict for the held-out hardware without any fine-tuning
+'''
+def learn_combined_models(list_val_dict):
+    list_val_dict_local = list_val_dict
+    for key in list_val_dict:
+        hold_out_val = list_val_dict_local[key]
+        hold_out_key = key
+        list_val_dict_local.pop(key)
+        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
+        model = learn_lstm_model('Mixed', list_val_dict_temp[key][0], final_lat, final_features)
+
+        held_out_hw_feature = []
+
+        #Create a hardware representation for the held-out hardware -- should reuse previous code
+        for i in range(len(final_indices)):
+            held_out_hw_feature.append(hold_out_val[1][final_indices[j]])
+            hold_out_val[1] = np.delete(hold_out_val[1], final_indices[j])
+            hold_out_val[2] = np.delete(hold_out_val[2], final_indices[j])
+
+        new_lat_ft = np.tile(held_out_hw_feature, (held_out_val[2].shape[0], held_out_val[key][2].shape[1], 1))
+        appended_features = np.concatenate((held_out_val[2], new_lat_ft), axis=2)
+
+        features, lat = shuffle(appended_features, new_lat_ft)
+        trainf = features[:int(0.05*len(features))]
+        trainy = lat[:int(0.05*len(lat))]
+        testf = features[int(0.05*len(features)):]
+        testy = lat[int(0.05*len(features)):]
+
+
+        trainPredict = model.predict(trainf)
+        testPredict = model.predict(testf)
+        trainScore = math.sqrt(mean_squared_error(trainy, trainPredict[:,0]))
+        print('Train Score: %f RMSE' % (trainScore))
+        testScore = math.sqrt(mean_squared_error(testy, testPredict[:,0]))
+        print('Test Score: %f RMSE' % (testScore))
+        r2_score = sklearn.metrics.r2_score(testy, testPredict[:,0])
+        plt.figure()
+        plt.xlabel("Transfer : Actual Latency")
+        plt.ylabel("Transfer : Predicted Latency")
+        plt.scatter(testy, testPredict[:,0])
+        plt.title(hardware+'Transfer R2:'+str(r2_score))
+        plt.savefig(hardware+'.png')
+
+        list_val_dict_local.push({key: hold_out_key, value: hold_out_val})
 
 def main():
   list_val_dict = {}
@@ -164,11 +250,6 @@ def main():
       val = False
       #print(os.path.basename(subdir), file)
 
-  for key in list_val_dict:
-    learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2])
-
-##### Write code to take all the hardware features, create a hold-out and learn and transfer for others
-## TODO
 
 if __name__ == '__main__':
   main()
