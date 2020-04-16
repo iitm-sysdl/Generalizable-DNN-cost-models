@@ -137,7 +137,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
             index += 1
 
         for j in range(len(index_where)):
-            index_where[0] = np.intersect1d(index_where[j], index_where[j+1])
+            index_where[0] = np.intersect1d(index_where[0], index_where[j])
 
         final_intersection = index_where[0]
 
@@ -194,18 +194,18 @@ def learn_combined_models(list_val_dict):
         list_val_dict_local.pop(key)
         final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
-        model = learn_lstm_model('Mixed', list_val_dict_temp[key][0], final_lat, final_features)
+        model = learn_lstm_model('Mixed', list_val_dict_local[key][0], final_lat, final_features)
 
         held_out_hw_feature = []
 
         #Create a hardware representation for the held-out hardware -- should reuse previous code
         for i in range(len(final_indices)):
-            held_out_hw_feature.append(hold_out_val[1][final_indices[j]])
-            hold_out_val[1] = np.delete(hold_out_val[1], final_indices[j])
-            hold_out_val[2] = np.delete(hold_out_val[2], final_indices[j])
+            held_out_hw_feature.append(hold_out_val[1][final_indices[i]])
+            hold_out_val[1] = np.delete(hold_out_val[1], final_indices[i])
+            hold_out_val[2] = np.delete(hold_out_val[2], final_indices[i])
 
-        new_lat_ft = np.tile(held_out_hw_feature, (held_out_val[2].shape[0], held_out_val[key][2].shape[1], 1))
-        appended_features = np.concatenate((held_out_val[2], new_lat_ft), axis=2)
+        new_lat_ft = np.tile(held_out_hw_feature, (hold_out_val[2].shape[0], hold_out_val[key][2].shape[1], 1))
+        appended_features = np.concatenate((hold_out_val[2], new_lat_ft), axis=2)
 
         features, lat = shuffle(appended_features, new_lat_ft)
         trainf = features[:int(0.05*len(features))]
@@ -225,8 +225,8 @@ def learn_combined_models(list_val_dict):
         plt.xlabel("Transfer : Actual Latency")
         plt.ylabel("Transfer : Predicted Latency")
         plt.scatter(testy, testPredict[:,0])
-        plt.title(hardware+'Transfer R2:'+str(r2_score))
-        plt.savefig(hardware+'.png')
+        plt.title(hold_out_key+'Transfer R2:'+str(r2_score))
+        plt.savefig(hold_out_key+'transfer'+'.png')
 
         list_val_dict_local.push({key: hold_out_key, value: hold_out_val})
 
