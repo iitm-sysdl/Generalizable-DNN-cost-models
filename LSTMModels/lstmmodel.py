@@ -126,7 +126,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
         net_dict[key][2] = net_dict[key][2][:5000,:,:] #Not required actually.. Simply doing
         net_dict[key][1] = net_dict[key][1][:5000]
         mean_lat.append(np.mean(net_dict[key][1]))
-        sd_lat.append(np.sd(net_dict[key][1]))
+        sd_lat.append(np.std(net_dict[key][1]))
 
     for i in range(-2,8): #This range might not be enough -- the range should be more generic when hardware increases
         index_where = []
@@ -140,7 +140,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
             index_where[0] = np.intersect1d(index_where[0], index_where[j])
 
         final_intersection = index_where[0]
-
+        print(len(final_intersection))
         if len(final_intersection) >= 4:
             loop_index = 4
         else:
@@ -152,11 +152,11 @@ def sample_hwrepresentation(net_dict, maxSamples):
             hw_features_per_device = []
             for j in range(loop_index):
                 hw_features_per_device.append(net_dict[key][1][final_intersection[j]])
-                net_dict[key][1] = np.delete(net_dict[key][1], final_intersection[j])
-                net_dict[key][2] = np.delete(net_dict[key][2], final_intersection[j])
+                net_dict[key][1] = np.delete(net_dict[key][1], final_intersection[j], axis=0)
+                net_dict[key][2] = np.delete(net_dict[key][2], final_intersection[j], axis=0)
                 final_indices.append(final_intersection[j])
             hw_features_cncat.append(hw_features_per_device)
-
+    print(len(final_indices), net_dict[key][2].shape)
     return final_indices, hw_features_cncat
 
 '''
@@ -168,12 +168,19 @@ hardware devices
 def append_with_net_features(net_dict, hw_features_cncat):
     new_lat_ft = []
     appended_features = []
+    appended_latencies = []
     index = 0
     for key in net_dict:
+        print(len(hw_features_cncat[index]))
         new_lat_ft = np.tile(hw_features_cncat[index], (net_dict[key][2].shape[0], net_dict[key][2].shape[1], 1))
         temp = np.concatenate((net_dict[key][2], new_lat_ft), axis=2)
-        appended_features = np.concatenate((appended_features, temp), axis=0)
-        appended_latencies = np.concatenate((appended_latencies, net_dict[key][1]), axis=0)
+        print(new_lat_ft.shape, net_dict[key][2].shape, temp.shape)
+        if index == 0:
+            appended_features = temp
+            appended_latencies = net_dict[key][1]
+        else:
+            appended_features = np.concatenate((appended_features, temp), axis=0)
+            appended_latencies = np.concatenate((appended_latencies, net_dict[key][1]), axis=0)
         index += 1
     return appended_latencies, appended_features
 
@@ -187,14 +194,14 @@ Holds out one hardware at a time and learns a combined model for the remaining h
 predict for the held-out hardware without any fine-tuning
 '''
 def learn_combined_models(list_val_dict):
-    list_val_dict_local = list_val_dict
+    list_val_dict_local = list_val_dict.copy()
     for key in list_val_dict:
         hold_out_val = list_val_dict_local[key]
         hold_out_key = key
         list_val_dict_local.pop(key)
         final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
-        model = learn_lstm_model('Mixed', list_val_dict_local[key][0], final_lat, final_features)
+        model = learn_lstm_model('Mixed', list_val_dict[key][0], final_lat, final_features)
 
         held_out_hw_feature = []
 
@@ -246,10 +253,17 @@ def main():
     if val==True:
       print(execTime, embeddings)
       print(subdir)
-      list_val_dict[os.path.basename(subdir)] = parse_features(subdir,execTime,embeddings)
+      tmp_list = []
+      maxLayer, lat_mean, numFeatures = parse_features(subdir, execTime, embeddings)
+      tmp_list.append(maxLayer)
+      tmp_list.append(lat_mean)
+      tmp_list.append(numFeatures)
+      print(numFeatures.shape, tmp_list[2].shape)
+      list_val_dict[os.path.basename(subdir)] = tmp_list
       val = False
       #print(os.path.basename(subdir), file)
 
+  learn_combined_models(list_val_dict)
 
 if __name__ == '__main__':
   main()
