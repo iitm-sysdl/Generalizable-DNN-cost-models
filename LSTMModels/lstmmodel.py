@@ -75,7 +75,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
 
   #Create an LSTM model
   model=Sequential()
-  model.add(Masking(mask_value=-1,input_shape=(maxLayer, 43)))
+  model.add(Masking(mask_value=-1,input_shape=(maxLayer, 32)))
   model.add(LSTM(20, activation='relu'))
   model.add(Dense(1))
   model.compile(loss='mean_squared_error', optimizer='adam')
@@ -152,11 +152,11 @@ def sample_hwrepresentation(net_dict, maxSamples):
         for j in range(loop_index):
             final_indices.append(final_intersection[j])
 
-    print("The final indices size is %f"%(final_indices))
+    print("The final indices size is %f"%(len(final_indices)))
 
     for key in net_dict:
         hw_features_per_device = []
-        for j in range(final_indices):
+        for j in range(len(final_indices)):
             hw_features_per_device.append(net_dict[key][1][final_indices[j]])
             net_dict[key][1] = np.delete(net_dict[key][1], final_indices[j], axis=0)
             net_dict[key][2] = np.delete(net_dict[key][2], final_indices[j], axis=0)
