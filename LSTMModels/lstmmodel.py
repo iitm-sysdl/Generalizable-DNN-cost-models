@@ -72,7 +72,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
   trainy = lat_mean[:int(0.85*len(features))]
   testf = features[int(0.85*len(features)):]
   testy = lat_mean[int(0.85*len(features)):]
-
+  print(trainf.shape, trainy.shape, testf.shape, testy.shape)
   #Create an LSTM model
   model=Sequential()
   model.add(Masking(mask_value=-1,input_shape=(maxLayer, 32)))
@@ -236,7 +236,7 @@ Holds out one hardware at a time and learns a combined model for the remaining h
 predict for the held-out hardware without any fine-tuning
 '''
 def learn_combined_models(list_val_dict):
-    #maxSamples = 30
+    #maxSamples = 19
     #final_indices = random_indices(maxSamples)
     for key in list_val_dict:
         list_val_dict_local = list_val_dict.copy()
@@ -247,6 +247,7 @@ def learn_combined_models(list_val_dict):
         #hw_features_cncat = random_sampling(list_val_dict, final_indices, maxSamples)
         final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
+        print(list_val_dict[key][0], final_lat.shape, final_features.shape)
         model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features)
 
         held_out_hw_feature = []
