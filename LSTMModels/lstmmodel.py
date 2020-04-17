@@ -80,7 +80,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
   model.add(Dense(1))
   model.compile(loss='mean_squared_error', optimizer='adam')
   model.summary()
-  model.fit(trainf, trainy, epochs=800, batch_size=8192, verbose=2)
+  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=2)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
@@ -149,29 +149,39 @@ def sample_hwrepresentation(net_dict, maxSamples):
 
         hw_features_cncat = []
 
-        for key in net_dict:
-            hw_features_per_device = []
-            for j in range(loop_index):
-                hw_features_per_device.append(net_dict[key][1][final_intersection[j]])
-                net_dict[key][1] = np.delete(net_dict[key][1], final_intersection[j], axis=0)
-                net_dict[key][2] = np.delete(net_dict[key][2], final_intersection[j], axis=0)
-                final_indices.append(final_intersection[j])
-            hw_features_cncat.append(hw_features_per_device)
+        for j in range(loop_index):
+            final_indices.append(final_intersection[j])
+
+    print("The final indices size is %f"%(final_indices))
+
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(final_indices):
+            hw_features_per_device.append(net_dict[key][1][final_indices[j]])
+            net_dict[key][1] = np.delete(net_dict[key][1], final_indices[j], axis=0)
+            net_dict[key][2] = np.delete(net_dict[key][2], final_indices[j], axis=0)
+        hw_features_cncat.append(hw_features_per_device)
     print(len(final_indices), net_dict[key][2].shape)
     return final_indices, hw_features_cncat
 
 
-def random_sampling(net_dict, maxSamples):
+def random_indices(maxSamples):
+    rand_indices = []
+    for i in range(maxSamples):
+        rand_indices.append(random.randint(0,5000))
+    return rand_indices
+
+def random_sampling(net_dict, rand_indices, maxSamples):
     for key in net_dict:
         net_dict[key][2] = net_dict[key][2][:5000,:,:]
         net_dict[key][1] = net_dict[key][1][:5000]
 
     hw_features_cncat = []
-    rand_indices = []
-    final_indices = []
+    #rand_indices = []
+    #final_indices = []
 
-    for i in range(maxSamples):
-        rand_indices.append(random.randint(0,5000))
+    #for i in range(maxSamples):
+    #    rand_indices.append(random.randint(0,5000))
 
     for key in net_dict:
         hw_features_per_device = []
@@ -187,7 +197,7 @@ def random_sampling(net_dict, maxSamples):
 
 
 
-    return rand_indices, hw_features_cncat
+    return hw_features_cncat
 
 
 
@@ -226,28 +236,31 @@ Holds out one hardware at a time and learns a combined model for the remaining h
 predict for the held-out hardware without any fine-tuning
 '''
 def learn_combined_models(list_val_dict):
-    list_val_dict_local = list_val_dict.copy()
+    #maxSamples = 30
+    #final_indices = random_indices(maxSamples)
     for key in list_val_dict:
+        list_val_dict_local = list_val_dict.copy()
         hold_out_val = list_val_dict_local[key]
         hold_out_key = key
+        print("-------------------Check-------------------: ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
         list_val_dict_local.pop(key)
-        final_indices, hw_features_cncat = random_sampling(list_val_dict_local, 30)
-        #final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        #hw_features_cncat = random_sampling(list_val_dict, final_indices, maxSamples)
+        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
-        model = learn_lstm_model('Mixed', list_val_dict[key][0], final_lat, final_features)
+        model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features)
 
         held_out_hw_feature = []
 
         #Create a hardware representation for the held-out hardware -- should reuse previous code
         for i in range(len(final_indices)):
             held_out_hw_feature.append(hold_out_val[1][final_indices[i]])
-            hold_out_val[1] = np.delete(hold_out_val[1], final_indices[i])
-            hold_out_val[2] = np.delete(hold_out_val[2], final_indices[i])
+            hold_out_val[1] = np.delete(hold_out_val[1], final_indices[i], axis=0)
+            hold_out_val[2] = np.delete(hold_out_val[2], final_indices[i], axis=0)
 
-        new_lat_ft = np.tile(held_out_hw_feature, (hold_out_val[2].shape[0], hold_out_val[key][2].shape[1], 1))
+        new_lat_ft = np.tile(held_out_hw_feature, (hold_out_val[2].shape[0], hold_out_val[2].shape[1], 1))
         appended_features = np.concatenate((hold_out_val[2], new_lat_ft), axis=2)
 
-        features, lat = shuffle(appended_features, new_lat_ft)
+        features, lat = shuffle(appended_features, hold_out_val[1])
         trainf = features[:int(0.05*len(features))]
         trainy = lat[:int(0.05*len(lat))]
         testf = features[int(0.05*len(features)):]
@@ -267,8 +280,9 @@ def learn_combined_models(list_val_dict):
         plt.scatter(testy, testPredict[:,0])
         plt.title(hold_out_key+'Transfer R2:'+str(r2_score))
         plt.savefig(hold_out_key+'transfer'+'.png')
+        print("The transferred R^2 Value for %s:"%(hold_out_key), r2_score)
 
-        list_val_dict_local.push({key: hold_out_key, value: hold_out_val})
+        #list_val_dict_local[hold_out_key] = hold_out_val
 
 def main():
   list_val_dict = {}
