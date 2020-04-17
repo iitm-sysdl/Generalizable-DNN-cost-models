@@ -66,7 +66,7 @@ def parse_features(subdir, latency_file, embeddings):
 
   return maxLayer,lat_mean,numpyFeatures
 
-def learn_lstm_model(hardware, maxLayer, lat_mean, features):
+def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   features, lat_mean = shuffle(features,lat_mean)
   trainf = features[:int(0.85*len(features))]
   trainy = lat_mean[:int(0.85*len(features))]
@@ -75,11 +75,12 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
   #Create an LSTM model
   model=Sequential()
-  model.add(Masking(mask_value=-1,input_shape=(maxLayer, 32)))
+  model.add(Masking(mask_value=-1,input_shape=(maxLayer, featuresShape)))
   model.add(LSTM(20, activation='relu'))
   model.add(Dense(1))
   model.compile(loss='mean_squared_error', optimizer='adam')
   model.summary()
+  #print(trainf, trainy)
   model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=2)
 
   trainPredict = model.predict(trainf)
@@ -128,20 +129,17 @@ def sample_hwrepresentation(net_dict, maxSamples):
         print(np.mean(net_dict[key][1]), np.std(net_dict[key][1]))
         mean_lat.append(np.mean(net_dict[key][1]))
         sd_lat.append(np.std(net_dict[key][1]))
-
     for i in range(-2,8): #This range might not be enough -- the range should be more generic when hardware increases
         index_where = []
         index = 0
 
         for key in net_dict:
-            index_where.append(np.logical_and(net_dict[key][1] > mean_lat[index]+i*sd_lat[index], net_dict[key][1] <= mean_lat[index]+(i+1)*sd_lat[index]))
+            index_where.append(np.where(np.logical_and(net_dict[key][1] > mean_lat[index]+i*sd_lat[index], net_dict[key][1] <= mean_lat[index]+(i+1)*sd_lat[index])))
             index += 1
-
         for j in range(len(index_where)):
             index_where[0] = np.intersect1d(index_where[0], index_where[j])
 
         final_intersection = index_where[0]
-        print(len(final_intersection))
         if len(final_intersection) >= 4:
             loop_index = 4
         else:
@@ -224,11 +222,13 @@ def append_with_net_features(net_dict, hw_features_cncat):
             appended_features = np.concatenate((appended_features, temp), axis=0)
             appended_latencies = np.concatenate((appended_latencies, net_dict[key][1]), axis=0)
         index += 1
+        print(appended_features.shape, appended_latencies.shape)
+        #print(appended_features, appended_latencies)
     return appended_latencies, appended_features
 
 def learn_individual_models(list_val_dict):
     for key in list_val_dict:
-      learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2])
+      learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], 43)
 
 
 '''
@@ -247,8 +247,8 @@ def learn_combined_models(list_val_dict):
         #hw_features_cncat = random_sampling(list_val_dict, final_indices, maxSamples)
         final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
-        print(list_val_dict[key][0], final_lat.shape, final_features.shape)
-        model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features)
+        #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
+        model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features, final_features.shape[2])
 
         held_out_hw_feature = []
 
