@@ -15,7 +15,7 @@ from numpy import genfromtxt
 from sklearn.utils import shuffle
 import csv
 from numpy import genfromtxt
-
+import random
 import math
 import sklearn
 from sklearn.metrics import mean_squared_error
@@ -75,12 +75,12 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features):
 
   #Create an LSTM model
   model=Sequential()
-  model.add(Masking(mask_value=-1,input_shape=(maxLayer, 13)))
+  model.add(Masking(mask_value=-1,input_shape=(maxLayer, 43)))
   model.add(LSTM(20, activation='relu'))
   model.add(Dense(1))
   model.compile(loss='mean_squared_error', optimizer='adam')
   model.summary()
-  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=2)
+  model.fit(trainf, trainy, epochs=800, batch_size=8192, verbose=2)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
@@ -125,6 +125,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
     for key in net_dict:
         net_dict[key][2] = net_dict[key][2][:5000,:,:] #Not required actually.. Simply doing
         net_dict[key][1] = net_dict[key][1][:5000]
+        print(np.mean(net_dict[key][1]), np.std(net_dict[key][1]))
         mean_lat.append(np.mean(net_dict[key][1]))
         sd_lat.append(np.std(net_dict[key][1]))
 
@@ -158,6 +159,37 @@ def sample_hwrepresentation(net_dict, maxSamples):
             hw_features_cncat.append(hw_features_per_device)
     print(len(final_indices), net_dict[key][2].shape)
     return final_indices, hw_features_cncat
+
+
+def random_sampling(net_dict, maxSamples):
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:5000,:,:]
+        net_dict[key][1] = net_dict[key][1][:5000]
+
+    hw_features_cncat = []
+    rand_indices = []
+    final_indices = []
+
+    for i in range(maxSamples):
+        rand_indices.append(random.randint(0,5000))
+
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(maxSamples):
+            hw_features_per_device.append(net_dict[key][1][rand_indices[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        for j in range(maxSamples):
+            net_dict[key][1] = np.delete(net_dict[key][1], rand_indices[j], axis=0)
+            net_dict[key][2] = np.delete(net_dict[key][2], rand_indices[j], axis=0)
+
+
+
+    return rand_indices, hw_features_cncat
+
+
 
 '''
 Append the hardware representation with the available network representation in axis = 2 (3rd dimension)
@@ -199,7 +231,8 @@ def learn_combined_models(list_val_dict):
         hold_out_val = list_val_dict_local[key]
         hold_out_key = key
         list_val_dict_local.pop(key)
-        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        final_indices, hw_features_cncat = random_sampling(list_val_dict_local, 30)
+        #final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         model = learn_lstm_model('Mixed', list_val_dict[key][0], final_lat, final_features)
 
