@@ -43,9 +43,10 @@ def parse_features(subdir, latency_file, embeddings):
   for i in range(len(data)):
       temp = [data[i][j * 13:(j + 1) * 13] for j in range((len(data[i]) + 12) // 13 )]
       maxLayer = max(maxLayer, len(temp))
-      maxFlops = max(maxFlops, int(temp[:][len(temp)-1][12]))
+      for j in range(len(temp)):
+            maxFlops=max(maxFlops, int(temp[j][12]))
       Features.append(temp)
-
+  
   numpyFeatures = np.ones((len(Features), maxLayer, 13))
   numpyFeatures = numpyFeatures*-1
 
@@ -168,6 +169,22 @@ def random_indices(maxSamples):
     for i in range(maxSamples):
         rand_indices.append(random.randint(0,5000))
     return rand_indices
+'''
+Function which computes total MACs of each network and samples maxSamples indices from it based on FLOPS.
+'''
+def flopsBasedIndices(maxSamples):
+    with open('../DiverseRandNetworkGenerator/Embeddings.csv') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+
+    totalFLOPSList = np.zeros(len(data))
+    for i in range(len(data)):
+        temp = [data[i][j * 13:(j + 1) * 13] for j in range((len(data[i]) + 12) // 13 )]
+        for j in range(len(temp)):
+            totalFLOPSList[i]+=int(temp[j][12])
+    
+    mean = np.mean(totalFLOPSList)
+    sd = np.std(totalFLOPSList)
 
 def random_sampling(net_dict, rand_indices, maxSamples):
     for key in net_dict:
@@ -287,32 +304,31 @@ def learn_combined_models(list_val_dict):
         #list_val_dict_local[hold_out_key] = hold_out_val
 
 def main():
-  list_val_dict = {}
-  execTime = []
-  embeddings = []
-  val = False
-  for subdir, dirs, files in os.walk(os.getcwd()):
-    for file in files:
-      if file == "execTime.csv":
-        execTime = file
-      elif file == "Embeddings.csv":
-        embeddings = file
-        val = True
+    list_val_dict = {}
+    execTime = []
+    embeddings = []
+    val = False
+    for subdir, dirs, files in os.walk(os.getcwd()):
+        for file in files:
+            if file == "execTime.csv":
+                execTime = file
+            elif file == "Embeddings.csv":
+                embeddings = file
+                val = True
+        if val==True:
+            print(execTime, embeddings)
+            print(subdir)
+            tmp_list = []
+            maxLayer, lat_mean, numFeatures = parse_features(subdir, execTime, embeddings)
+            tmp_list.append(maxLayer)
+            tmp_list.append(lat_mean)
+            tmp_list.append(numFeatures)
+            print(numFeatures.shape, tmp_list[2].shape)
+            list_val_dict[os.path.basename(subdir)] = tmp_list
+            val = False
+            #print(os.path.basename(subdir), file)
 
-    if val==True:
-      print(execTime, embeddings)
-      print(subdir)
-      tmp_list = []
-      maxLayer, lat_mean, numFeatures = parse_features(subdir, execTime, embeddings)
-      tmp_list.append(maxLayer)
-      tmp_list.append(lat_mean)
-      tmp_list.append(numFeatures)
-      print(numFeatures.shape, tmp_list[2].shape)
-      list_val_dict[os.path.basename(subdir)] = tmp_list
-      val = False
-      #print(os.path.basename(subdir), file)
-
-  learn_combined_models(list_val_dict)
+    learn_combined_models(list_val_dict)
 
 if __name__ == '__main__':
   main()
