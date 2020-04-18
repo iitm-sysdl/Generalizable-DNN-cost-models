@@ -8,7 +8,7 @@ from keras.layers import Activation
 from keras.layers import Masking
 from keras.layers import Input
 from keras.layers import Concatenate
-
+import copy
 import numpy as np
 from matplotlib import pyplot as plt
 from numpy import genfromtxt
@@ -236,15 +236,16 @@ Holds out one hardware at a time and learns a combined model for the remaining h
 predict for the held-out hardware without any fine-tuning
 '''
 def learn_combined_models(list_val_dict):
-    #maxSamples = 19
+    #maxSamples = 30
     #final_indices = random_indices(maxSamples)
     for key in list_val_dict:
-        list_val_dict_local = list_val_dict.copy()
+        #list_val_dict_local = list_val_dict.copy() #This was creating a shallow copy
+        list_val_dict_local = copy.deepcopy(list_val_dict)
         hold_out_val = list_val_dict_local[key]
         hold_out_key = key
         print("-------------------Check-------------------: ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
         list_val_dict_local.pop(key)
-        #hw_features_cncat = random_sampling(list_val_dict, final_indices, maxSamples)
+        #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
         final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
