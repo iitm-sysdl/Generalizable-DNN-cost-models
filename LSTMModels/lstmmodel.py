@@ -243,6 +243,119 @@ def append_with_net_features(net_dict, hw_features_cncat):
         #print(appended_features, appended_latencies)
     return appended_latencies, appended_features
 
+
+def mutual_information(net_dict):
+    index = 0
+    for key in net_dict:
+        if index == 0:
+            stacked_arr = net_dict[key][1]
+        else:
+            stacked_arr = np.column_stack((stacked_arr, net_dict[key][1]))
+        index+=1
+
+    print(stacked_arr.shape)
+    mutualInformationMatrix = np.zeros(stacked_arr.shape[0]*stacked_arr.shape[0])
+    for i in range(stacked_arr.shape[0]):
+        for j in range(i, stacked_arr.shape[0]):
+            mutualInformationMatrix[i][j] = mutualInformationMatrix[j][i] = sklearn.metrics.normalized_mutual_info_score(stacked_arr[i], stacked_arr[j])
+
+    print(mutualInformationMatrix)
+
+
+### Prof. Pratyush's MI implementation
+
+def mutual_information_v2(net_dict, numSamples):
+    index = 0
+    ## Rows - Networks, Columns - Hardware
+
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:5000,:,:]
+        net_dict[key][1] = net_dict[key][1][:5000]
+
+    for key in net_dict:
+        if index == 0:
+            stacked_arr = net_dict[key][1]
+        else:
+            stacked_arr = np.column_stack((stacked_arr, net_dict[key][1]))
+        index+=1
+
+    quantize = np.arange(0, 101, 33)
+    nlevels = len(quantize)
+    print(stacked_arr.shape)
+    nrows = stacked_arr.shape[0]
+    ncols = stacked_arr.shape[1]
+
+    for i in range(nrows):
+        a_ = stacked_arr[i, :]
+        p = np.percentile(a_, quantize)
+        bins = np.digitize(a_, p)
+        stacked_arr[i, :] = bins - 1
+
+    val = np.random.randint(0, nrows)
+    sel_list = [val]
+    hw_features_cncat = []
+
+    print( " ------------------------------------- Beginning Sampling -------------------")
+    for k in range(numSamples):
+        max_info = 0
+        for i in range(nrows):
+            if i in sel_list:
+                continue
+            m = -mutual_info(stacked_arr, sel_list + [i], nrows, ncols)
+
+            if m >= max_info:
+                max_index = i
+                max_info = m
+        sel_list = sel_list + [max_index]
+    print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(len(sel_list)):
+            hw_features_per_device.append(net_dict[key][1][sel_list[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        for j in range(len(sel_list)):
+            net_dict[key][1] = np.delete(net_dict[key][1], sel_list[j], axis=0)
+            net_dict[key][2] = np.delete(net_dict[key][2], sel_list[j], axis=0)
+
+    return sel_list, hw_features_cncat
+
+
+
+def mutual_info(arr, row_list, nrows, ncols):
+    arr = arr[row_list, :]
+    t = tuple(arr[i, :] for i in np.arange(len(row_list) - 1, -1, -1))
+    inds = np.lexsort(t)
+    a_sorted = arr[:, inds]
+
+    self_info = 0
+    k = 0
+
+    for i in range(1, ncols):
+        if i==0:
+            continue
+        k+=1
+        if not np.array_equal(a_sorted[:,i-1], a_sorted[:,i]):
+            self_info += k*np.log(k)
+            k=0
+
+    a_sorted = a_sorted[-1, :]
+    mutual_info = 0
+    k = 0
+    for i in range(1, ncols):
+        if i == 0:
+            continue
+        k += 1
+        if not a_sorted[i] == a_sorted[i-1]:
+            mutual_info += k * np.log(k)
+            k = 0
+
+    return self_info - mutual_info
+
+
+
 def learn_individual_models(list_val_dict):
     for key in list_val_dict:
       learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], 43)
@@ -260,10 +373,12 @@ def learn_combined_models(list_val_dict):
         list_val_dict_local = copy.deepcopy(list_val_dict)
         hold_out_val = list_val_dict_local[key]
         hold_out_key = key
-        print("-------------------Check-------------------: ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
+        print("-------------------Check-------------------: %n ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
         list_val_dict_local.pop(key)
+        print("%n", len(list_val_dict_local), len(list_val_dict), key)
         #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
-        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        #final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
         model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features, final_features.shape[2])
@@ -304,6 +419,35 @@ def learn_combined_models(list_val_dict):
         #list_val_dict_local[hold_out_key] = hold_out_val
 
 def main():
+<<<<<<< HEAD
+  list_val_dict = {}
+  execTime = []
+  embeddings = []
+  val = False
+  for subdir, dirs, files in os.walk(os.getcwd()):
+    for file in files:
+      if file == "execTime.csv":
+        execTime = file
+      elif file == "Embeddings.csv":
+        embeddings = file
+        val = True
+
+    if val==True:
+      print(execTime, embeddings)
+      print(subdir)
+      tmp_list = []
+      maxLayer, lat_mean, numFeatures = parse_features(subdir, execTime, embeddings)
+      tmp_list.append(maxLayer)
+      tmp_list.append(lat_mean)
+      tmp_list.append(numFeatures)
+      print(numFeatures.shape, tmp_list[2].shape)
+      list_val_dict[os.path.basename(subdir)] = tmp_list
+      val = False
+      #print(os.path.basename(subdir), file)
+
+  learn_combined_models(list_val_dict)
+  #mutual_information(list_val_dict)
+=======
     list_val_dict = {}
     execTime = []
     embeddings = []
@@ -329,6 +473,7 @@ def main():
             #print(os.path.basename(subdir), file)
 
     learn_combined_models(list_val_dict)
+>>>>>>> 0477dd7b37ac52cea0714f3eba56b107ea630a2c
 
 if __name__ == '__main__':
   main()
