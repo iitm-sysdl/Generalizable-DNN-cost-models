@@ -290,7 +290,8 @@ def mutual_information_v2(net_dict, numSamples):
         p = np.percentile(a_, quantize)
         bins = np.digitize(a_, p)
         stacked_arr[i, :] = bins - 1
-
+    # print(stacked_arr[0:5,:])
+    # exit()
     val = np.random.randint(0, nrows)
     sel_list = [val]
     hw_features_cncat = []
@@ -306,7 +307,7 @@ def mutual_information_v2(net_dict, numSamples):
             if m >= max_info:
                 max_index = i
                 max_info = m
-        sel_list = sel_list + [max_index]
+    sel_list = sel_list + [max_index]
     print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
     for key in net_dict:
         hw_features_per_device = []
@@ -419,35 +420,6 @@ def learn_combined_models(list_val_dict):
         #list_val_dict_local[hold_out_key] = hold_out_val
 
 def main():
-<<<<<<< HEAD
-  list_val_dict = {}
-  execTime = []
-  embeddings = []
-  val = False
-  for subdir, dirs, files in os.walk(os.getcwd()):
-    for file in files:
-      if file == "execTime.csv":
-        execTime = file
-      elif file == "Embeddings.csv":
-        embeddings = file
-        val = True
-
-    if val==True:
-      print(execTime, embeddings)
-      print(subdir)
-      tmp_list = []
-      maxLayer, lat_mean, numFeatures = parse_features(subdir, execTime, embeddings)
-      tmp_list.append(maxLayer)
-      tmp_list.append(lat_mean)
-      tmp_list.append(numFeatures)
-      print(numFeatures.shape, tmp_list[2].shape)
-      list_val_dict[os.path.basename(subdir)] = tmp_list
-      val = False
-      #print(os.path.basename(subdir), file)
-
-  learn_combined_models(list_val_dict)
-  #mutual_information(list_val_dict)
-=======
     list_val_dict = {}
     execTime = []
     embeddings = []
@@ -470,13 +442,12 @@ def main():
             print(numFeatures.shape, tmp_list[2].shape)
             list_val_dict[os.path.basename(subdir)] = tmp_list
             val = False
-            #print(os.path.basename(subdir), file)
 
     learn_combined_models(list_val_dict)
->>>>>>> 0477dd7b37ac52cea0714f3eba56b107ea630a2c
 
 if __name__ == '__main__':
-  main()
+    np.random.seed(42)
+    main()
 
 
 
