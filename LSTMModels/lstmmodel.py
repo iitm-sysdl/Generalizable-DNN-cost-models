@@ -333,8 +333,6 @@ def mutual_info(arr, row_list, nrows, ncols):
     k = 0
 
     for i in range(1, ncols):
-        if i==0:
-            continue
         k+=1
         if not np.array_equal(a_sorted[:,i-1], a_sorted[:,i]):
             self_info += k*np.log(k)
@@ -344,8 +342,6 @@ def mutual_info(arr, row_list, nrows, ncols):
     mutual_info = 0
     k = 0
     for i in range(1, ncols):
-        if i == 0:
-            continue
         k += 1
         if not a_sorted[i] == a_sorted[i-1]:
             mutual_info += k * np.log(k)
@@ -375,9 +371,11 @@ def learn_combined_models(list_val_dict):
         print("-------------------Check-------------------: %n ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
         list_val_dict_local.pop(key)
         print("%n", len(list_val_dict_local), len(list_val_dict), key)
+        
         #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
-        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
-        #final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+        # final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+        
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
         model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features, final_features.shape[2])
