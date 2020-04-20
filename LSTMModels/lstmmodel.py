@@ -46,7 +46,7 @@ def parse_features(subdir, latency_file, embeddings):
       for j in range(len(temp)):
             maxFlops=max(maxFlops, int(temp[j][12]))
       Features.append(temp)
-  
+
   numpyFeatures = np.ones((len(Features), maxLayer, 13))
   numpyFeatures = numpyFeatures*-1
 
@@ -157,8 +157,8 @@ def sample_hwrepresentation(net_dict, maxSamples):
         hw_features_per_device = []
         for j in range(len(final_indices)):
             hw_features_per_device.append(net_dict[key][1][final_indices[j]])
-            net_dict[key][1] = np.delete(net_dict[key][1], final_indices[j], axis=0)
-            net_dict[key][2] = np.delete(net_dict[key][2], final_indices[j], axis=0)
+        net_dict[key][1] = np.delete(net_dict[key][1], final_indices, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], final_indices, axis=0)
         hw_features_cncat.append(hw_features_per_device)
     print(len(final_indices), net_dict[key][2].shape)
     return final_indices, hw_features_cncat
@@ -182,7 +182,7 @@ def flopsBasedIndices(maxSamples):
         temp = [data[i][j * 13:(j + 1) * 13] for j in range((len(data[i]) + 12) // 13 )]
         for j in range(len(temp)):
             totalFLOPSList[i]+=int(temp[j][12])
-    
+
     mean = np.mean(totalFLOPSList)
     sd = np.std(totalFLOPSList)
 
@@ -206,9 +206,8 @@ def random_sampling(net_dict, rand_indices, maxSamples):
 
     #If this is not done separately, the code will break
     for key in net_dict:
-        for j in range(maxSamples):
-            net_dict[key][1] = np.delete(net_dict[key][1], rand_indices[j], axis=0)
-            net_dict[key][2] = np.delete(net_dict[key][2], rand_indices[j], axis=0)
+        net_dict[key][1] = np.delete(net_dict[key][1], rand_indices, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], rand_indices, axis=0)
 
 
 
@@ -307,7 +306,7 @@ def mutual_information_v2(net_dict, numSamples):
             if m >= max_info:
                 max_index = i
                 max_info = m
-    sel_list = sel_list + [max_index]
+        sel_list = sel_list + [max_index]
     print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
     for key in net_dict:
         hw_features_per_device = []
@@ -317,19 +316,18 @@ def mutual_information_v2(net_dict, numSamples):
 
     #If this is not done separately, the code will break
     for key in net_dict:
-        for j in range(len(sel_list)):
-            net_dict[key][1] = np.delete(net_dict[key][1], sel_list[j], axis=0)
-            net_dict[key][2] = np.delete(net_dict[key][2], sel_list[j], axis=0)
+        net_dict[key][1] = np.delete(net_dict[key][1], sel_list, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], sel_list, axis=0)
 
     return sel_list, hw_features_cncat
 
 
 
 def mutual_info(arr, row_list, nrows, ncols):
-    arr = arr[row_list, :]
-    t = tuple(arr[i, :] for i in np.arange(len(row_list) - 1, -1, -1))
+    arr_temp = arr[row_list, :]
+    t = tuple(arr_temp[i, :] for i in np.arange(len(row_list) - 1, -1, -1))
     inds = np.lexsort(t)
-    a_sorted = arr[:, inds]
+    a_sorted = arr_temp[:, inds]
 
     self_info = 0
     k = 0
@@ -378,8 +376,8 @@ def learn_combined_models(list_val_dict):
         list_val_dict_local.pop(key)
         print("%n", len(list_val_dict_local), len(list_val_dict), key)
         #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
-        #final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
-        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        #final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
         model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features, final_features.shape[2])
@@ -389,8 +387,8 @@ def learn_combined_models(list_val_dict):
         #Create a hardware representation for the held-out hardware -- should reuse previous code
         for i in range(len(final_indices)):
             held_out_hw_feature.append(hold_out_val[1][final_indices[i]])
-            hold_out_val[1] = np.delete(hold_out_val[1], final_indices[i], axis=0)
-            hold_out_val[2] = np.delete(hold_out_val[2], final_indices[i], axis=0)
+        hold_out_val[1] = np.delete(hold_out_val[1], final_indices, axis=0)
+        hold_out_val[2] = np.delete(hold_out_val[2], final_indices, axis=0)
 
         new_lat_ft = np.tile(held_out_hw_feature, (hold_out_val[2].shape[0], hold_out_val[2].shape[1], 1))
         appended_features = np.concatenate((hold_out_val[2], new_lat_ft), axis=2)
