@@ -8,6 +8,8 @@ from keras.layers import Activation
 from keras.layers import Masking
 from keras.layers import Input
 from keras.layers import Concatenate
+from keras import optimizers
+from scipy.stats import spearmanr
 import copy
 import numpy as np
 from matplotlib import pyplot as plt
@@ -68,29 +70,36 @@ def parse_features(subdir, latency_file, embeddings):
   return maxLayer,lat_mean,numpyFeatures
 
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
+  
   features, lat_mean = shuffle(features,lat_mean)
   trainf = features[:int(0.85*len(features))]
   trainy = lat_mean[:int(0.85*len(features))]
   testf = features[int(0.85*len(features)):]
   testy = lat_mean[int(0.85*len(features)):]
   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
+  
   #Create an LSTM model
   model=Sequential()
   model.add(Masking(mask_value=-1,input_shape=(maxLayer, featuresShape)))
   model.add(LSTM(20, activation='relu'))
   model.add(Dense(1))
-  model.compile(loss='mean_squared_error', optimizer='adam')
+  #Adam intialized with Default Values. Tune only intial Learning rate.
+  opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+  model.compile(loss='mean_squared_error', optimizer=opt)
   model.summary()
-  #print(trainf, trainy)
-  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=2)
+  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=1)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
-  trainScore = math.sqrt(mean_squared_error(trainy, trainPredict[:,0]))
+  trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
   print('Train Score: %f RMSE' % (trainScore))
-  testScore = math.sqrt(mean_squared_error(testy, testPredict[:,0]))
-  r2_score = sklearn.metrics.r2_score(testy, testPredict[:,0])
+  testScore = math.sqrt(mean_squared_error(testy, testPredict))
+  r2_score = sklearn.metrics.r2_score(testy, testPredict)
+  s_coefficient, pvalue = spearmanr(testy, testPredict)
   print('Test Score: %f RMSE' % (testScore))
+  print("The R^2 Value for %s:"%(hardware), r2_score)
+  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware), s_coefficient, pvalue)
+  
   plt.figure()
   plt.xlabel("Actual Latency")
   plt.ylabel("Predicted Latency")
@@ -98,7 +107,6 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   plt.title(hardware+' R2: '+str(r2_score))
   plt.savefig(hardware+'.png')
   #plt.show()
-  print("The R^2 Value for %s:"%(hardware), r2_score)
   return model
 
 
@@ -269,20 +277,22 @@ def mutual_information(net_dict, numSamples):
     
     processes = []
     print("-------------------------------------------Begin PreComputation----------------------------------------------------")
-    for i in range(matShape):
-        p = mp.Process(target=parallel_mi, args=(i, matShape, stacked_arr, mutualInformationMatrix))
-        processes.append(p)
-        p.start()
+    for i in range(matShape//100):
+        for j in range(100):
+            p = mp.Process(target=parallel_mi, args=(i*100+j, matShape, stacked_arr, mutualInformationMatrix))
+            processes.append(p)
+            p.start()
         
-    for process in processes:
-        process.join()
+        for process in processes:
+            process.join()
+        print("%i Done" %((i+1)*100))
     print("-------------------------------------------Done PreComputation----------------------------------------------------")
     val = np.random.randint(0, stacked_arr.shape[0])
     sel_list = [val]
     hw_features_cncat = []
     
     print( " ------------------------------------- Beginning Sampling -------------------")
-    for k in range(numSamples):
+    for k in range(numSamples-1):
         mininfo=1000000000000
         for l in range(stacked_arr.shape[0]):
             if l in sel_list:
@@ -342,7 +352,7 @@ def mutual_information_v2(net_dict, numSamples):
     hw_features_cncat = []
 
     print( " ------------------------------------- Beginning Sampling -------------------")
-    for k in range(numSamples):
+    for k in range(numSamples-1):
         max_info = 0
         for i in range(nrows):
             if i in sel_list:
@@ -420,8 +430,9 @@ def learn_combined_models(list_val_dict):
         
         #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
         # final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
-        final_indices, hw_features_cncat = mutual_information(list_val_dict_local, 30)
-        
+        # final_indices, hw_features_cncat = mutual_information(list_val_dict_local, 30)
+        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
         model = learn_lstm_model('Mixed Without'+hold_out_key, list_val_dict[key][0], final_lat, final_features, final_features.shape[2])
@@ -446,20 +457,21 @@ def learn_combined_models(list_val_dict):
 
         trainPredict = model.predict(trainf)
         testPredict = model.predict(testf)
-        trainScore = math.sqrt(mean_squared_error(trainy, trainPredict[:,0]))
+        trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
         print('Train Score: %f RMSE' % (trainScore))
-        testScore = math.sqrt(mean_squared_error(testy, testPredict[:,0]))
+        testScore = math.sqrt(mean_squared_error(testy, testPredict))
         print('Test Score: %f RMSE' % (testScore))
-        r2_score = sklearn.metrics.r2_score(testy, testPredict[:,0])
+        r2_score = sklearn.metrics.r2_score(testy, testPredict)
+        s_coefficient, pvalue = spearmanr(testy, testPredict)
+        print("The transferred R^2 Value for %s:"%(hold_out_key), r2_score)
+        print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware), s_coefficient, pvalue)
+
         plt.figure()
         plt.xlabel("Transfer : Actual Latency")
         plt.ylabel("Transfer : Predicted Latency")
         plt.scatter(testy, testPredict[:,0])
         plt.title(hold_out_key+'Transfer R2:'+str(r2_score))
         plt.savefig(hold_out_key+'transfer'+'.png')
-        print("The transferred R^2 Value for %s:"%(hold_out_key), r2_score)
-
-        #list_val_dict_local[hold_out_key] = hold_out_val
 
 def main():
     list_val_dict = {}
