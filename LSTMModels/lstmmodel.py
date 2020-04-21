@@ -21,7 +21,7 @@ import sklearn
 from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot as plt
 import os
-
+import multiprocessing as mp
 
 def parse_features(subdir, latency_file, embeddings):
   Features = []
@@ -245,6 +245,11 @@ def append_with_net_features(net_dict, hw_features_cncat):
 '''
 Computes Pairwise Mutual Information
 '''
+
+def parallel_mi(i, matShape, stacked_arr, mutualInformationMatrix):
+    for j in range(i, matShape):
+            mutualInformationMatrix[i][j] = mutualInformationMatrix[j][i] = sklearn.metrics.normalized_mutual_info_score(stacked_arr[i], stacked_arr[j])
+
 def mutual_information(net_dict, numSamples):
     index = 0
 
@@ -258,12 +263,19 @@ def mutual_information(net_dict, numSamples):
         else:
             stacked_arr = np.column_stack((stacked_arr, net_dict[key][1]))
         index+=1
-
+    matShape = stacked_arr.shape[0]
     print(stacked_arr.shape)
-    mutualInformationMatrix = np.zeros((stacked_arr.shape[0],stacked_arr.shape[0]))
-    for i in range(stacked_arr.shape[0]):
-        for j in range(i, stacked_arr.shape[0]):
-            mutualInformationMatrix[i][j] = mutualInformationMatrix[j][i] = sklearn.metrics.normalized_mutual_info_score(stacked_arr[i], stacked_arr[j])
+    mutualInformationMatrix = np.zeros((matShape,matShape))
+    
+    processes = []
+    print("-------------------------------------------Begin PreComputation----------------------------------------------------")
+    for i in range(matShape):
+        p = mp.Process(target=parallel_mi, args=(i, matShape, stacked_arr, mutualInformationMatrix))
+        processes.append(p)
+        p.start()
+        
+    for process in processes:
+        process.join()
     print("-------------------------------------------Done PreComputation----------------------------------------------------")
     val = np.random.randint(0, stacked_arr.shape[0])
     sel_list = [val]
