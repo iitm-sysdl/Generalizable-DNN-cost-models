@@ -409,7 +409,7 @@ def mutual_info(arr, row_list, nrows, ncols):
 
 def learn_individual_models(list_val_dict):
     for key in list_val_dict:
-      learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], 43)
+      learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], 13)
 
 
 '''
@@ -498,6 +498,7 @@ def main():
             val = False
 
     learn_combined_models(list_val_dict)
+    # learn_individual_models(list_val_dict)
 
 if __name__ == '__main__':
     np.random.seed(42)
