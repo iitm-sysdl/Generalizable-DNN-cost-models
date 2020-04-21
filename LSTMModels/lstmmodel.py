@@ -1,5 +1,5 @@
 import keras
-import pickle
+import tensorflow as tf
 from keras.models import Sequential
 from keras.models import Model
 from keras.layers import Dense
@@ -16,7 +16,6 @@ from matplotlib import pyplot as plt
 from numpy import genfromtxt
 from sklearn.utils import shuffle
 import csv
-from numpy import genfromtxt
 import random
 import math
 import sklearn
@@ -83,11 +82,12 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   model.add(Masking(mask_value=-1,input_shape=(maxLayer, featuresShape)))
   model.add(LSTM(20, activation='relu'))
   model.add(Dense(1))
-  #Adam intialized with Default Values. Tune only intial Learning rate.
-  opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+  '''Adam intialized with Default Values. Tune only intial Learning rate.
+  opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)'''
+  opt = optimizers.Adam(learning_rate=0.01, beta_1=0.9, beta_2=0.999, amsgrad=False)
   model.compile(loss='mean_squared_error', optimizer=opt)
   model.summary()
-  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=1)
+  model.fit(trainf, trainy, epochs=800, batch_size=2048, verbose=1)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
@@ -501,6 +501,8 @@ def main():
 
 if __name__ == '__main__':
     np.random.seed(42)
+    tf.set_random_seed(42)
+    random.seed(30)
     main()
 
 
