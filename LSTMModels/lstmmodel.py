@@ -242,9 +242,16 @@ def append_with_net_features(net_dict, hw_features_cncat):
         #print(appended_features, appended_latencies)
     return appended_latencies, appended_features
 
-
-def mutual_information(net_dict):
+'''
+Computes Pairwise Mutual Information
+'''
+def mutual_information(net_dict, numSamples):
     index = 0
+
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:5000,:,:]
+        net_dict[key][1] = net_dict[key][1][:5000]
+
     for key in net_dict:
         if index == 0:
             stacked_arr = net_dict[key][1]
@@ -253,13 +260,40 @@ def mutual_information(net_dict):
         index+=1
 
     print(stacked_arr.shape)
-    mutualInformationMatrix = np.zeros(stacked_arr.shape[0]*stacked_arr.shape[0])
+    mutualInformationMatrix = np.zeros((stacked_arr.shape[0],stacked_arr.shape[0]))
     for i in range(stacked_arr.shape[0]):
         for j in range(i, stacked_arr.shape[0]):
             mutualInformationMatrix[i][j] = mutualInformationMatrix[j][i] = sklearn.metrics.normalized_mutual_info_score(stacked_arr[i], stacked_arr[j])
+    print("-------------------------------------------Done PreComputation----------------------------------------------------")
+    val = np.random.randint(0, stacked_arr.shape[0])
+    sel_list = [val]
+    hw_features_cncat = []
+    
+    print( " ------------------------------------- Beginning Sampling -------------------")
+    for k in range(numSamples):
+        mininfo=1000000000000
+        for l in range(stacked_arr.shape[0]):
+            if l in sel_list:
+                continue
+            temp = mutualInformationMatrix[l][sel_list].sum()
+            if temp < mininfo:
+                mininfo=temp
+                min_index = l
+        sel_list = sel_list + [l]
+    
+    print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(len(sel_list)):
+            hw_features_per_device.append(net_dict[key][1][sel_list[j]])
+        hw_features_cncat.append(hw_features_per_device)
 
-    print(mutualInformationMatrix)
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        net_dict[key][1] = np.delete(net_dict[key][1], sel_list, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], sel_list, axis=0)
 
+    return sel_list, hw_features_cncat
 
 ### Prof. Pratyush's MI implementation
 
@@ -374,7 +408,7 @@ def learn_combined_models(list_val_dict):
         
         #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
         # final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
-        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+        final_indices, hw_features_cncat = mutual_information(list_val_dict_local, 30)
         
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
