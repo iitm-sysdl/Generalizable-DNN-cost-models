@@ -474,10 +474,9 @@ def learn_combined_models(list_val_dict):
         plt.title(hold_out_key+'Transfer R2:'+str(r2_score))
         plt.savefig(hold_out_key+'transfer'+'.png')
 
-def plotLatnecySamples(list_val_dict):
-    maxSamples = 30
-    
+def plotLatnecyRandomSamples(list_val_dict):
     ## ------------------Random Sampling------------------
+    maxSamples = 30
     final_indices = random_indices(maxSamples)
     latency = np.zeros((len(list_val_dict), maxSamples))
     i = 0
@@ -502,6 +501,7 @@ def plotLatnecySamples(list_val_dict):
     ax.legend()
     fig.savefig("RandomSampling.png")
 
+def plotLatnecyStatSamples(list_val_dict):
     #----------Statistical Sampling With HoldOut Hardwares-------------------
     for key in list_val_dict:
         list_val_dict_local = copy.deepcopy(list_val_dict)
@@ -528,6 +528,8 @@ def plotLatnecySamples(list_val_dict):
             ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
         ax.legend()
         fig.savefig("Statistical_Without_"+str(hold_out_key)+".png")
+
+def plotLatnecyMISamples(list_val_dict):
     ##---------Mutual Information 1--------------------
     for key in list_val_dict:
         list_val_dict_local = copy.deepcopy(list_val_dict)
@@ -554,6 +556,7 @@ def plotLatnecySamples(list_val_dict):
             ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
         ax.legend()
         fig.savefig("MutualInfo_Without_"+str(hold_out_key)+".png")
+
 def main():
     list_val_dict = {}
     execTime = []
@@ -580,7 +583,9 @@ def main():
 
     # learn_combined_models(list_val_dict)
     # learn_individual_models(list_val_dict)
-    plotLatnecySamples(list_val_dict)
+    plotLatnecyRandomSamples(list_val_dict)
+    plotLatnecyRandomSamples(list_val_dict)
+    plotLatnecyMISamples(list_val_dict)
 
 if __name__ == '__main__':
     np.random.seed(42)
