@@ -489,7 +489,7 @@ def plotLatnecyRandomSamples(list_val_dict):
     labels = list(list_val_dict.keys())
 
     fig, ax = plt.subplots()
-
+    ax.set_title("RandomSampling")
     ax.set_xlabel("networks")
     ax.set_ylabel("Latency")
     for i in range(latency.shape[0]):
@@ -499,7 +499,7 @@ def plotLatnecyRandomSamples(list_val_dict):
     # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax.legend()
-    fig.savefig("RandomSampling.png")
+    fig.savefig("plots/RandomSampling.png")
 
 def plotLatnecyStatSamples(list_val_dict):
     #----------Statistical Sampling With HoldOut Hardwares-------------------
@@ -522,12 +522,13 @@ def plotLatnecyStatSamples(list_val_dict):
         labels = list(list_val_dict_local.keys())
 
         fig, ax = plt.subplots()
+        ax.set_title("Statistical_Without_"+str(hold_out_key))
         ax.set_xlabel("Networks")
         ax.set_ylabel("Latency")
         for i in range(latency.shape[0]):
             ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
         ax.legend()
-        fig.savefig("Statistical_Without_"+str(hold_out_key)+".png")
+        fig.savefig("plots/Statistical_Without_"+str(hold_out_key)+".png")
 
 def plotLatnecyMISamples(list_val_dict):
     ##---------Mutual Information 1--------------------
@@ -550,12 +551,13 @@ def plotLatnecyMISamples(list_val_dict):
         labels = list(list_val_dict_local.keys())
 
         fig, ax = plt.subplots()
+        ax.set_title("MutualInfo_Without_"+str(hold_out_key))
         ax.set_xlabel("Networks")
         ax.set_ylabel("Latency")
         for i in range(latency.shape[0]):
             ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
         ax.legend()
-        fig.savefig("MutualInfo_Without_"+str(hold_out_key)+".png")
+        fig.savefig("plots/MutualInfo_Without_"+str(hold_out_key)+".png")
 
 def main():
     list_val_dict = {}
