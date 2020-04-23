@@ -584,15 +584,15 @@ def main():
             val = False
 
     # learn_combined_models(list_val_dict)
-    # learn_individual_models(list_val_dict)
-    plotLatnecyRandomSamples(list_val_dict)
-    plotLatnecyStatSamples(list_val_dict)
-    plotLatnecyMISamples(list_val_dict)
+    learn_individual_models(list_val_dict)
+    # plotLatnecyRandomSamples(list_val_dict)
+    # plotLatnecyStatSamples(list_val_dict)
+    # plotLatnecyMISamples(list_val_dict)
 
 if __name__ == '__main__':
     np.random.seed(42)
-    # tf.random.set_seed(42)
-    random.seed(30)
+    tf.random.set_seed(42)
+    random.seed(42)
     main()
 
 
