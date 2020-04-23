@@ -515,7 +515,7 @@ def plotLatnecyStatSamples(list_val_dict):
         i = 0
         for key in list_val_dict_local:
             for j in range(maxSamples):
-                latency[i][j] = list_val_dict_local[key][1][final_indices[j]]
+                latency[i][j] = list_val_dict[key][1][final_indices[j]]
             i+=1
         
         colors = matplotlib.cm.rainbow(np.linspace(0, 1, latency.shape[0]))
@@ -543,7 +543,7 @@ def plotLatnecyMISamples(list_val_dict):
         i = 0
         for key in list_val_dict_local:
             for j in range(maxSamples):
-                latency[i][j] = list_val_dict_local[key][1][final_indices[j]]
+                latency[i][j] = list_val_dict[key][1][final_indices[j]]
             i+=1
         
         colors = matplotlib.cm.rainbow(np.linspace(0, 1, latency.shape[0]))
