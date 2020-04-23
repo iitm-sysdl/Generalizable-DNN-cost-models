@@ -586,7 +586,7 @@ def main():
     # learn_combined_models(list_val_dict)
     # learn_individual_models(list_val_dict)
     plotLatnecyRandomSamples(list_val_dict)
-    plotLatnecyRandomSamples(list_val_dict)
+    plotLatnecyStatSamples(list_val_dict)
     plotLatnecyMISamples(list_val_dict)
 
 if __name__ == '__main__':
