@@ -23,6 +23,7 @@ from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot as plt
 import os
 import multiprocessing as mp
+import matplotlib.cm
 
 def parse_features(subdir, latency_file, embeddings):
   Features = []
@@ -473,6 +474,86 @@ def learn_combined_models(list_val_dict):
         plt.title(hold_out_key+'Transfer R2:'+str(r2_score))
         plt.savefig(hold_out_key+'transfer'+'.png')
 
+def plotLatnecySamples(list_val_dict):
+    maxSamples = 30
+    
+    ## ------------------Random Sampling------------------
+    final_indices = random_indices(maxSamples)
+    latency = np.zeros((len(list_val_dict), maxSamples))
+    i = 0
+    for key in list_val_dict:
+        for j in range(maxSamples):
+            latency[i][j] = list_val_dict[key][1][final_indices[j]]
+        i+=1
+    
+    colors = matplotlib.cm.rainbow(np.linspace(0, 1, latency.shape[0]))
+    labels = list(list_val_dict.keys())
+
+    fig, ax = plt.subplots()
+
+    ax.set_xlabel("networks")
+    ax.set_ylabel("Latency")
+    for i in range(latency.shape[0]):
+        ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
+    # Shrink current axis by 20%
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax.legend()
+    fig.savefig("RandomSampling.png")
+
+    #----------Statistical Sampling With HoldOut Hardwares-------------------
+    for key in list_val_dict:
+        list_val_dict_local = copy.deepcopy(list_val_dict)
+        hold_out_val = list_val_dict_local[key]
+        hold_out_key = key
+        list_val_dict_local.pop(key)
+        
+        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        maxSamples = len(final_indices)
+        latency = np.zeros((len(list_val_dict_local), maxSamples))
+        i = 0
+        for key in list_val_dict_local:
+            for j in range(maxSamples):
+                latency[i][j] = list_val_dict_local[key][1][final_indices[j]]
+            i+=1
+        
+        colors = matplotlib.cm.rainbow(np.linspace(0, 1, latency.shape[0]))
+        labels = list(list_val_dict_local.keys())
+
+        fig, ax = plt.subplots()
+        ax.set_xlabel("Networks")
+        ax.set_ylabel("Latency")
+        for i in range(latency.shape[0]):
+            ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
+        ax.legend()
+        fig.savefig("Statistical_Without_"+str(hold_out_key)+".png")
+    ##---------Mutual Information 1--------------------
+    for key in list_val_dict:
+        list_val_dict_local = copy.deepcopy(list_val_dict)
+        hold_out_val = list_val_dict_local[key]
+        hold_out_key = key
+        list_val_dict_local.pop(key)
+        
+        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+        maxSamples = len(final_indices)
+        latency = np.zeros((len(list_val_dict_local), maxSamples))
+        i = 0
+        for key in list_val_dict_local:
+            for j in range(maxSamples):
+                latency[i][j] = list_val_dict_local[key][1][final_indices[j]]
+            i+=1
+        
+        colors = matplotlib.cm.rainbow(np.linspace(0, 1, latency.shape[0]))
+        labels = list(list_val_dict_local.keys())
+
+        fig, ax = plt.subplots()
+        ax.set_xlabel("Networks")
+        ax.set_ylabel("Latency")
+        for i in range(latency.shape[0]):
+            ax.scatter(np.arange(latency.shape[1]), latency[i][:], color=colors[i], label=labels[i])
+        ax.legend()
+        fig.savefig("MutualInfo_Without_"+str(hold_out_key)+".png")
 def main():
     list_val_dict = {}
     execTime = []
@@ -497,12 +578,13 @@ def main():
             list_val_dict[os.path.basename(subdir)] = tmp_list
             val = False
 
-    learn_combined_models(list_val_dict)
+    # learn_combined_models(list_val_dict)
     # learn_individual_models(list_val_dict)
+    plotLatnecySamples(list_val_dict)
 
 if __name__ == '__main__':
     np.random.seed(42)
-    tf.random.set_seed(42)
+    # tf.random.set_seed(42)
     random.seed(30)
     main()
 
