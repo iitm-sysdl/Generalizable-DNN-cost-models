@@ -67,10 +67,10 @@ def plotTSNERandomSamples(list_val_dict):
     
     for i in range(latency.shape[0]):
         temp = np.reshape(latency[i][:], (-1,1))
-        transformedOut = TSNE(n_compolsnents=2).fit_transform(temp)
+        transformedOut = TSNE(n_components=2).fit_transform(temp)
         print(transformedOut.shape)
-        # plt.scatter(transformedOut[:][0], transformedOut[:][1])
-        # plt.show()
+        plt.scatter(transformedOut[:][0], transformedOut[:][1])
+        plt.show()
 
 def plotLatnecyStatSamples(list_val_dict):
     #----------Statistical Sampling With HoldOut Hardwares-------------------
