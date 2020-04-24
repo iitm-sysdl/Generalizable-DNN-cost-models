@@ -4,11 +4,9 @@ import torch.nn.functional as F
 import statistics
 import csv
 import platform
-import psutil
 import random
 from random import sample
 from random import randrange
-import pickle
 import time
 file1 = open('netFeatures.csv', 'r')
 csv_reader = csv.reader(file1)
