@@ -79,5 +79,5 @@ for i in range(len(data)):
     print(i, mean_time, vari_time)
     file2.write(str(mean_time)+ ',' + str(vari_time) + '\n')
     file2.flush()
-    os.fsync()
+    os.fsync(file2)
 file2.close()
