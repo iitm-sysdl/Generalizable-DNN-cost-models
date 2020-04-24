@@ -3,11 +3,9 @@ import torch.nn as nn
 import statistics
 import csv
 import platform
-import psutil
 import random
 from random import sample
 from random import randrange
-import pickle
 
 maxNumLayers = 20
 numSamples = 10000
