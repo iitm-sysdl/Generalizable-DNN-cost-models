@@ -25,6 +25,9 @@ import os
 import multiprocessing as mp
 import matplotlib.cm
 
+numLatency = 1000
+
+
 def parse_features(subdir, latency_file, embeddings):
   Features = []
   maxLayer = 0
@@ -35,10 +38,10 @@ def parse_features(subdir, latency_file, embeddings):
   maxPadding = 3
 
   latency = np.genfromtxt(subdir + "/" + latency_file, delimiter=',')
-  lat_mean = latency[:,0]
+  lat_mean = latency[:numLatency,0]
   maxlatency=np.amax(lat_mean)
   lat_mean = lat_mean/maxlatency
-  with open(subdir + "/" + embeddings, newline='') as f:
+  with open(embeddings, newline='') as f:
       reader = csv.reader(f)
       data = list(reader)
 
@@ -134,8 +137,8 @@ def sample_hwrepresentation(net_dict, maxSamples):
     final_indices = []
     #Determining the Mean and Standard Deviation of Latencies
     for key in net_dict:
-        net_dict[key][2] = net_dict[key][2][:5000,:,:] #Not required actually.. Simply doing
-        net_dict[key][1] = net_dict[key][1][:5000]
+        net_dict[key][2] = net_dict[key][2][:numLatency,:,:] #Not required actually.. Simply doing
+        net_dict[key][1] = net_dict[key][1][:numLatency]
         print(np.mean(net_dict[key][1]), np.std(net_dict[key][1]))
         mean_lat.append(np.mean(net_dict[key][1]))
         sd_lat.append(np.std(net_dict[key][1]))
@@ -176,7 +179,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
 def random_indices(maxSamples):
     rand_indices = []
     for i in range(maxSamples):
-        rand_indices.append(random.randint(0,5000))
+        rand_indices.append(random.randint(0,numLatency))
     return rand_indices
 '''
 Function which computes total MACs of each network and samples maxSamples indices from it based on FLOPS.
@@ -197,8 +200,8 @@ def flopsBasedIndices(maxSamples):
 
 def random_sampling(net_dict, rand_indices, maxSamples):
     for key in net_dict:
-        net_dict[key][2] = net_dict[key][2][:5000,:,:]
-        net_dict[key][1] = net_dict[key][1][:5000]
+        net_dict[key][2] = net_dict[key][2][:numLatency,:,:]
+        net_dict[key][1] = net_dict[key][1][:numLatency]
 
     hw_features_cncat = []
     #rand_indices = []
@@ -263,8 +266,8 @@ def mutual_information(net_dict, numSamples):
     index = 0
 
     for key in net_dict:
-        net_dict[key][2] = net_dict[key][2][:5000,:,:]
-        net_dict[key][1] = net_dict[key][1][:5000]
+        net_dict[key][2] = net_dict[key][2][:numLatency,:,:]
+        net_dict[key][1] = net_dict[key][1][:numLatency]
 
     for key in net_dict:
         if index == 0:
@@ -325,8 +328,8 @@ def mutual_information_v2(net_dict, numSamples):
     ## Rows - Networks, Columns - Hardware
 
     for key in net_dict:
-        net_dict[key][2] = net_dict[key][2][:5000,:,:]
-        net_dict[key][1] = net_dict[key][1][:5000]
+        net_dict[key][2] = net_dict[key][2][:numLatency,:,:]
+        net_dict[key][1] = net_dict[key][1][:numLatency]
 
     for key in net_dict:
         if index == 0:
@@ -478,15 +481,16 @@ def learn_combined_models(list_val_dict):
 def main():
     list_val_dict = {}
     execTime = []
-    embeddings = []
+    embeddings = "Embeddings.csv"
     val = False
     for subdir, dirs, files in os.walk(os.getcwd()):
         for file in files:
             if file == "execTime.csv":
                 execTime = file
-            elif file == "Embeddings.csv":
-                embeddings = file
                 val = True
+            #elif file == "Embeddings.csv":
+            #    embeddings = file
+            #    val = True
         if val==True:
             print(execTime, embeddings)
             print(subdir)
