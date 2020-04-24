@@ -65,13 +65,16 @@ def plotTSNERandomSamples(list_val_dict):
             latency[i][j] = list_val_dict[key][1][final_indices[j]]
         i+=1
     
-    for i in range(latency.shape[0]):
-        temp = np.reshape(latency[i][:], (-1,1))
-        transformedOut = TSNE(n_components=2).fit_transform(temp)
-        print(transformedOut.shape)
-        plt.scatter(transformedOut[:][0], transformedOut[:][1])
-        plt.show()
+    colors = matplotlib.cm.rainbow(np.linspace(0, 1, latency.shape[0]))
+    labels = list(list_val_dict.keys())
 
+    transformedOut = TSNE(n_components=2).fit_transform(latency)
+    
+    fig, ax = plt.subplots()
+    for i in range(transformedOut.shape[0]):
+        ax.scatter(transformedOut[i][0], transformedOut[i][0], color=colors[i], label=labels[i])
+    ax.legend()
+    plt.show()
 def plotLatnecyStatSamples(list_val_dict):
     #----------Statistical Sampling With HoldOut Hardwares-------------------
     for key in list_val_dict:
