@@ -7,6 +7,7 @@ import platform
 import random
 from random import sample
 from random import randrange
+import os
 
 file1 = open('netFeatures.csv', 'r')
 csv_reader = csv.reader(file1)
@@ -62,6 +63,8 @@ for i in range(len(data)):
         timeL.append(prof.self_cpu_time_total)
     mean_time = statistics.mean(timeL)
     vari_time = statistics.stdev(timeL)
-    print(mean_time, vari_time)
+    print(i, mean_time, vari_time)
     file2.write(str(mean_time)+ ',' + str(vari_time) + '\n')
+    file2.flush()
+    os.fsync()
 file2.close()
