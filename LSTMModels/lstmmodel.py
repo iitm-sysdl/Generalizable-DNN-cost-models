@@ -24,8 +24,14 @@ from matplotlib import pyplot as plt
 import os
 import multiprocessing as mp
 import matplotlib.cm
+import argparse
 
 numLatency = 1000
+
+parser = argparse.ArgumentParser(description = "LSTM Models for Transferrable Cost Models")
+parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data', required=True)
+parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data', required=True)
+args = parser.parse_args()
 
 
 def parse_features(subdir, latency_file, embeddings):
@@ -73,14 +79,14 @@ def parse_features(subdir, latency_file, embeddings):
   return maxLayer,lat_mean,numpyFeatures
 
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
-  
+
   features, lat_mean = shuffle(features,lat_mean)
   trainf = features[:int(0.85*len(features))]
   trainy = lat_mean[:int(0.85*len(features))]
   testf = features[int(0.85*len(features)):]
   testy = lat_mean[int(0.85*len(features)):]
   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
-  
+
   #Create an LSTM model
   model=Sequential()
   model.add(Masking(mask_value=-1,input_shape=(maxLayer, featuresShape)))
@@ -103,7 +109,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   print('Test Score: %f RMSE' % (testScore))
   print("The R^2 Value for %s:"%(hardware), r2_score)
   print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware), s_coefficient, pvalue)
-  
+
   plt.figure()
   plt.xlabel("Actual Latency")
   plt.ylabel("Predicted Latency")
@@ -278,7 +284,7 @@ def mutual_information(net_dict, numSamples):
     matShape = stacked_arr.shape[0]
     print(stacked_arr.shape)
     mutualInformationMatrix = np.zeros((matShape,matShape))
-    
+
     processes = []
     print("-------------------------------------------Begin PreComputation----------------------------------------------------")
     for i in range(matShape//100):
@@ -286,7 +292,7 @@ def mutual_information(net_dict, numSamples):
             p = mp.Process(target=parallel_mi, args=(i*100+j, matShape, stacked_arr, mutualInformationMatrix))
             processes.append(p)
             p.start()
-        
+
         for process in processes:
             process.join()
         print("%i Done" %((i+1)*100))
@@ -294,7 +300,7 @@ def mutual_information(net_dict, numSamples):
     val = np.random.randint(0, stacked_arr.shape[0])
     sel_list = [val]
     hw_features_cncat = []
-    
+
     print( " ------------------------------------- Beginning Sampling -------------------")
     for k in range(numSamples-1):
         mininfo=1000000000000
@@ -306,7 +312,7 @@ def mutual_information(net_dict, numSamples):
                 mininfo=temp
                 min_index = l
         sel_list = sel_list + [l]
-    
+
     print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
     for key in net_dict:
         hw_features_per_device = []
@@ -421,8 +427,9 @@ Holds out one hardware at a time and learns a combined model for the remaining h
 predict for the held-out hardware without any fine-tuning
 '''
 def learn_combined_models(list_val_dict):
-    #maxSamples = 30
-    #final_indices = random_indices(maxSamples)
+    if args.sampling_type == 'random':
+        maxSamples = 30
+        final_indices = random_indices(maxSamples)
     for key in list_val_dict:
         #list_val_dict_local = list_val_dict.copy() #This was creating a shallow copy
         list_val_dict_local = copy.deepcopy(list_val_dict)
@@ -431,11 +438,18 @@ def learn_combined_models(list_val_dict):
         print("-------------------Check-------------------: %n ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
         list_val_dict_local.pop(key)
         print("%n", len(list_val_dict_local), len(list_val_dict), key)
-        
-        #hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
-        # final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
-        # final_indices, hw_features_cncat = mutual_information(list_val_dict_local, 30)
-        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+
+        if args.sampling_type == 'random':
+            hw_features_cncat = random_sampling(list_val_dict_local, final_indices, maxSamples)
+        elif args.sampling_type == 'statistical':
+            final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, 30)
+        elif args.sampling_type == 'mutual_info_v1':
+            final_indices, hw_features_cncat = mutual_information(list_val_dict_local, 30)
+        elif args.sampling_type == 'mutual_info_v2':
+            final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, 30)
+        else:
+            print("Invalid --sampling_type - Fix")
+            exit(0)
 
         final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
         #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
@@ -503,8 +517,16 @@ def main():
             list_val_dict[os.path.basename(subdir)] = tmp_list
             val = False
 
+    if args.learning_type == 'individual':
+        learn_individual_models(list_val_dict)
+    elif args.learning_type == 'combined':
+        learn_combined_models(list_val_dict)
+    else:
+        print("Invalid --learning_type - Fix")
+        exit(0)
+
     # learn_combined_models(list_val_dict)
-    learn_individual_models(list_val_dict)
+    #learn_individual_models(list_val_dict)
     # plotLatnecyRandomSamples(list_val_dict)
     # plotLatnecyStatSamples(list_val_dict)
     # plotLatnecyMISamples(list_val_dict)
