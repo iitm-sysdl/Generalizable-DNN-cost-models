@@ -53,10 +53,14 @@ def main():
 
     numHardware = len(list_val_dict)
     hardwareList = list(list_val_dict.keys())
+    transferR2Score = np.zeros((numHardware, numHardware))
+    transferSpearman = np.zeros((numHardware, numHardware))
     for i in range(numHardware):
         key = hardwareList[i]
         model = learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], 13)
-        for j in range(i+1, numHardware):
+        for j in range(numHardware):
+            if j == i:
+                continue
             transferKey = hardwareList[j]
             features, lat = shuffle(list_val_dict[transferKey][2], list_val_dict[transferKey][1])
             trainf = features[:int(0.05*len(features))]
@@ -76,13 +80,12 @@ def main():
             print("The transferred R^2 Value for %s:"%(transferKey), r2_score)
             print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(transferKey, s_coefficient, pvalue))
 
-            plt.figure()
-            plt.xlabel("Transfer : Actual Latency")
-            plt.ylabel("Transfer : Predicted Latency")
-            plt.scatter(testy, testPredict[:,0])
-            plt.title(transferKey+'Transfer R2:'+str(r2_score))
-            plt.savefig(transferKey+'transfer'+'.png')
+            transferR2Score[i][j] = r2_score
+            transferSpearman[i][j] = s_coefficient
 
+    numpy.savetxt("transferR2score.csv", transferR2Score, delimiter=",")
+    numpy.savetxt("transferSpearMan.csv", transferSpearman, delimiter=",")
+    print(hardwareList)
 if __name__ == '__main__':
     np.random.seed(42)
     tf.random.set_seed(42)
