@@ -25,7 +25,7 @@ import os
 import multiprocessing as mp
 import matplotlib.cm
 from lstmmodel import *
-
+numLatency = 1000
 def main():
     list_val_dict = {}
     execTime = []

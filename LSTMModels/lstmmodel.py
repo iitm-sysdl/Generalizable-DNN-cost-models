@@ -28,12 +28,6 @@ import argparse
 
 numLatency = 1000
 
-parser = argparse.ArgumentParser(description = "LSTM Models for Transferrable Cost Models")
-parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data', required=True)
-parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data', required=True)
-args = parser.parse_args()
-
-
 def parse_features(subdir, latency_file, embeddings):
   Features = []
   maxLayer = 0
@@ -482,7 +476,7 @@ def learn_combined_models(list_val_dict):
         r2_score = sklearn.metrics.r2_score(testy, testPredict)
         s_coefficient, pvalue = spearmanr(testy, testPredict)
         print("The transferred R^2 Value for %s:"%(hold_out_key), r2_score)
-        print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware), s_coefficient, pvalue)
+        print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(hold_out_key), s_coefficient, pvalue)
 
         plt.figure()
         plt.xlabel("Transfer : Actual Latency")
@@ -535,6 +529,10 @@ if __name__ == '__main__':
     np.random.seed(42)
     tf.random.set_seed(42)
     random.seed(42)
+    parser = argparse.ArgumentParser(description = "LSTM Models for Transferrable Cost Models")
+    parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data', required=True)
+    parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data', required=True)
+    args = parser.parse_args()
     main()
 
 
