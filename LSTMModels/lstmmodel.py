@@ -73,7 +73,8 @@ def parse_features(subdir, latency_file, embeddings):
   return maxLayer,lat_mean,numpyFeatures
 
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
-
+  numSample = len(lat_mean)
+  features = features[:numSample]
   features, lat_mean = shuffle(features,lat_mean)
   trainf = features[:int(0.85*len(features))]
   trainy = lat_mean[:int(0.85*len(features))]
@@ -88,10 +89,10 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   model.add(Dense(1))
   '''Adam intialized with Default Values. Tune only intial Learning rate.
   opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)'''
-  opt = optimizers.Adam(learning_rate=0.01, beta_1=0.9, beta_2=0.999, amsgrad=False)
+  opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
   model.compile(loss='mean_squared_error', optimizer=opt)
   model.summary()
-  model.fit(trainf, trainy, epochs=800, batch_size=2048, verbose=1)
+  model.fit(trainf, trainy, epochs=800, batch_size=256, verbose=1)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
