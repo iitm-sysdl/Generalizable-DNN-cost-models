@@ -103,7 +103,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   s_coefficient, pvalue = spearmanr(testy, testPredict)
   print('Test Score: %f RMSE' % (testScore))
   print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware), s_coefficient, pvalue)
+  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
   plt.xlabel("Actual Latency")
@@ -477,7 +477,7 @@ def learn_combined_models(list_val_dict):
         r2_score = sklearn.metrics.r2_score(testy, testPredict)
         s_coefficient, pvalue = spearmanr(testy, testPredict)
         print("The transferred R^2 Value for %s:"%(hold_out_key), r2_score)
-        print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(hold_out_key), s_coefficient, pvalue)
+        print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(hold_out_key, s_coefficient, pvalue))
 
         plt.figure()
         plt.xlabel("Transfer : Actual Latency")

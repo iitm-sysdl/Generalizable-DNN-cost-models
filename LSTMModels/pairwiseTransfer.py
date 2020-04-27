@@ -74,7 +74,7 @@ def main():
             r2_score = sklearn.metrics.r2_score(testy, testPredict)
             s_coefficient, pvalue = spearmanr(testy, testPredict)
             print("The transferred R^2 Value for %s:"%(transferKey), r2_score)
-            print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(transferKey), s_coefficient, pvalue)
+            print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(transferKey, s_coefficient, pvalue))
 
             plt.figure()
             plt.xlabel("Transfer : Actual Latency")
