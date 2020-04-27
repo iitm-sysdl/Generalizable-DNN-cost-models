@@ -83,8 +83,8 @@ def main():
             transferR2Score[i][j] = r2_score
             transferSpearman[i][j] = s_coefficient
 
-    numpy.savetxt("transferR2score.csv", transferR2Score, delimiter=",")
-    numpy.savetxt("transferSpearMan.csv", transferSpearman, delimiter=",")
+    np.savetxt("transferR2score.csv", transferR2Score, delimiter=",")
+    np.savetxt("transferSpearMan.csv", transferSpearman, delimiter=",")
     print(hardwareList)
 if __name__ == '__main__':
     np.random.seed(42)
