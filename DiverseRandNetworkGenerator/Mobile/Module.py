@@ -73,5 +73,6 @@ for i in range(len(data)):
     timeL=[]
     x = torch.randn([1, 3, inDim, inDim])
     net = DiverseRandNetwork(layerFeatures, paddingDict)
-    print(net)
-    y = net(x)
+    # 
+    # print(net)
+    # y = net(x)

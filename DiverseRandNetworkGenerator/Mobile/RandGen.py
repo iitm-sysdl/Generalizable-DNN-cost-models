@@ -8,7 +8,7 @@ from random import sample
 from random import randrange
 
 maxNumLayers = 20
-numSamples = 5
+numSamples = 1000
 
 masterFeatures = []
 availableOperatorsList = ['nn.MobileBottle',  'nn.MaxPool2d']
@@ -87,7 +87,7 @@ for i in range(numSamples):
         elif operator == "nn.MaxPool2d":
             inDim, numMaxPool, prevMaxPool = maxpool(inDim, numMaxPool, netFeatures, netEmbedding)
     
-    print(netFeatures)
+    # print(netFeatures)
     # print(netEmbedding)
     data=''
     for itr in netFeatures:
