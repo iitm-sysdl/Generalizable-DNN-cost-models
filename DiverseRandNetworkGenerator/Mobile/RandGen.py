@@ -8,7 +8,7 @@ from random import sample
 from random import randrange
 
 maxNumLayers = 20
-numSamples = 1000
+numSamples = 100
 
 masterFeatures = []
 availableOperatorsList = ['nn.MobileBottle',  'nn.MaxPool2d']

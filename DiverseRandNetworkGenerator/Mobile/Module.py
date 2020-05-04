@@ -8,6 +8,8 @@ import random
 from random import sample
 from random import randrange
 import os
+# pip install --upgrade git+https://github.com/mit-han-lab/torchprofile.git
+from torchprofile import profile_macs
 # from ModuleClass import *
 
 file1 = open('netFeaturesMob.csv', 'r')
@@ -73,6 +75,8 @@ for i in range(len(data)):
     timeL=[]
     x = torch.randn([1, 3, inDim, inDim])
     net = DiverseRandNetwork(layerFeatures, paddingDict)
+    macs = profile_macs(net, x)
+    print('MACs: {:.4g} G'.format(macs / 1e9))
     # 
     # print(net)
     # y = net(x)
