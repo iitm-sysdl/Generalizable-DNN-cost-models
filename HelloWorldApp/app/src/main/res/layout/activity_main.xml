@@ -38,4 +38,13 @@
         android:textColor="@android:color/white"
         android:textSize="18sp" />
 
+    <TextView
+        android:id="@+id/text4"
+        android:layout_width="118dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:background="#80000000"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
+
 </FrameLayout>
