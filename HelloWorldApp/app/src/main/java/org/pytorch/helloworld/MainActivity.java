@@ -51,10 +51,7 @@ public class MainActivity extends AppCompatActivity {
     setContentView(R.layout.activity_main);
 
     startBackgroundThread();
-
-    for(int k =0; k < 15; k++) {
-      setupImageX(k);
-    }
+    setupImageX();
 
   }
 
@@ -80,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
    * @return absolute file path
    */
 
-  private void setupImageX(final int k){
+  private void setupImageX(){
    // imageView = findViewById(R.id.image);
     imageView = (ImageView) findViewById(R.id.image);
     textView =  (TextView) findViewById(R.id.text);
