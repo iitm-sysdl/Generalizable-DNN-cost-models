@@ -1,0 +1,158 @@
+package org.pytorch.helloworld;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Bundle;
+import android.util.Log;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.os.SystemClock;
+
+import org.pytorch.IValue;
+import org.pytorch.Module;
+import org.pytorch.Tensor;
+import org.pytorch.torchvision.TensorImageUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+import androidx.annotation.UiThread;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+  TextView textView;
+  TextView msView;
+  TextView fileView;
+  String className = "";
+  float moduleForwardDuration = 0.0f;
+  float[] scores;
+  int j = 0;
+  Bitmap bitmap = null;
+  Module module = null;
+  ImageView imageView;
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+
+
+    for(j = 0; j < 15; j++) {
+      try {
+        // creating bitmap from packaged into app android asset 'image.jpg',
+        // app/src/main/assets/image.jpg
+        bitmap = BitmapFactory.decodeStream(getAssets().open("image.jpg"));
+        // loading serialized torchscript module from packaged into app android asset model.pt,
+        // app/src/model/assets/model.pt
+        module = Module.load(assetFilePath(this, "model.pt"));
+      } catch (IOException e) {
+        Log.e("PytorchHelloWorld", "Error reading assets", e);
+        finish();
+      }
+
+
+
+      // preparing input tensor
+      final Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
+              TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
+
+      // running the model
+      float moduleForwardStartTime = SystemClock.elapsedRealtime();
+      final Tensor outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
+      moduleForwardDuration = SystemClock.elapsedRealtime() - moduleForwardStartTime;
+
+      // getting tensor content as java array of floats
+      scores = outputTensor.getDataAsFloatArray();
+
+      // searching for the index with maximum score
+      float maxScore = -Float.MAX_VALUE;
+      int maxScoreIdx = -1;
+      for (int i = 0; i < scores.length; i++) {
+        if (scores[i] > maxScore) {
+          maxScore = scores[i];
+          maxScoreIdx = i;
+        }
+      }
+
+      className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
+
+
+      runOnUiThread(() -> disPlay(bitmap, className, moduleForwardDuration, j));
+
+     /* runOnUiThread(new Runnable() {
+        public void run() {
+          // showing image on UI
+          imageView = findViewById(R.id.image);
+          imageView.setImageBitmap(bitmap);
+
+          textView = findViewById(R.id.text);
+          textView.setText(className);
+
+          msView = findViewById(R.id.text2);
+          msView.setText(String.format("%f ms", moduleForwardDuration));
+
+          fileView = findViewById(R.id.text3);
+          fileView.setText(Integer.toString(j));
+        }
+      });*/
+    }
+
+    // showing className on UI
+   /* TextView textView = findViewById(R.id.text);
+    textView.setText(className);
+
+    TextView msView = findViewById(R.id.text2);
+    msView.setText(String.format("%f ms",moduleForwardDuration));
+
+    TextView fileView = findViewById(R.id.text3);
+    fileView.setText(Integer.toString(0));*/
+
+  }
+
+  @SuppressLint({"DefaultLocale", "SetTextI18n"})
+  @Override
+  protected void disPlay(Bitmap bitmap2, String classes, float forwardTime, int iter){
+    imageView = findViewById(R.id.image);
+    imageView.setImageBitmap(bitmap2);
+
+    textView = findViewById(R.id.text);
+    textView.setText(classes);
+
+    msView = findViewById(R.id.text2);
+    msView.setText(String.format("%f ms", forwardTime));
+
+    fileView = findViewById(R.id.text3);
+    fileView.setText(Integer.toString(iter));
+  }
+
+  /**
+   * Copies specified asset to the file in /files app directory and returns this file absolute path.
+   *
+   * @return absolute file path
+   */
+  public static String assetFilePath(Context context, String assetName) throws IOException {
+    File file = new File(context.getFilesDir(), assetName);
+    if (file.exists() && file.length() > 0) {
+      return file.getAbsolutePath();
+    }
+
+    try (InputStream is = context.getAssets().open(assetName)) {
+      try (OutputStream os = new FileOutputStream(file)) {
+        byte[] buffer = new byte[4 * 1024];
+        int read;
+        while ((read = is.read(buffer)) != -1) {
+          os.write(buffer, 0, read);
+        }
+        os.flush();
+      }
+      return file.getAbsolutePath();
+    }
+  }
+}
+
+@UiThread
+protected abstract void disPlay(ImageView imageView, String className, TextView textView, TextView msView, TextView fileView);
