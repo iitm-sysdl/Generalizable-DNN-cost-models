@@ -531,8 +531,8 @@ if __name__ == '__main__':
     tf.random.set_seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser(description = "LSTM Models for Transferrable Cost Models")
-    parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data', required=True)
-    parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data', required=True)
+    parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data. Options are individual, combined', required=True)
+    parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are random, statistical, mutual_info_v1, mutual_info_v2', required=True)
     args = parser.parse_args()
     main()
 
