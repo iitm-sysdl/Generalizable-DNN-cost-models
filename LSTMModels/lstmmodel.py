@@ -89,10 +89,10 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   model.add(Dense(1))
   '''Adam intialized with Default Values. Tune only intial Learning rate.
   opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)'''
-  opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+  opt = optimizers.Adam(learning_rate=0.004, beta_1=0.9, beta_2=0.999, amsgrad=False)
   model.compile(loss='mean_squared_error', optimizer=opt)
   model.summary()
-  model.fit(trainf, trainy, epochs=800, batch_size=256, verbose=1)
+  model.fit(trainf, trainy, epochs=800, batch_size=1024, verbose=1)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
@@ -109,7 +109,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   plt.xlabel("Actual Latency")
   plt.ylabel("Predicted Latency")
   plt.scatter(testy, testPredict[:,0])
-  plt.title(hardware+' R2: '+str(r2_score))
+  plt.title(hardware+' PearR2: '+str(r2_score)+' SpearR2: '+str(s_coefficient))
   plt.savefig(hardware+'.png')
   #plt.show()
   return model
@@ -483,7 +483,7 @@ def learn_combined_models(list_val_dict):
         plt.xlabel("Transfer : Actual Latency")
         plt.ylabel("Transfer : Predicted Latency")
         plt.scatter(testy, testPredict[:,0])
-        plt.title(hold_out_key+'Transfer R2:'+str(r2_score))
+        plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
         plt.savefig(hold_out_key+'transfer'+'.png')
 
 
