@@ -17,7 +17,9 @@ import org.pytorch.Module;
 import org.pytorch.Tensor;
 import org.pytorch.torchvision.TensorImageUtils;
 
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -106,33 +108,82 @@ public class MainActivity extends AppCompatActivity {
     Runnable runnable = new Runnable() {
       @Override
       public void run() {
-        val = forWard(bitmap, module);
-        if(val == 1) {
-          finView.setText(String.format("Completed"));
+        FileInputStream fout2 = null;
+          val = forWard(bitmap, module);
+        try {
+           fout2 = openFileInput("output.txt");
+          finView.setText(String.format("File Pass"));
 
-          //HTTP client
+        } catch (FileNotFoundException e) {
+          finView.setText(String.format("File Fail"));
+          e.printStackTrace();
+        }
+        try {
+          fout2.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+
+        //HTTP client
+          String attachmentName = "output";
+          String attachmentFileName = "output.txt";
+          String crlf = "\r\n";
+          String twoHyphens = "--";
+          String boundary =  "*****";
 
           try {
-            URL url = new URL("http://456f9ec7.ngrok.io");
+            URL url = new URL("http://4126ea81.ngrok.io");
             HttpURLConnection httpUrlConnection = (HttpURLConnection) url.openConnection();;
             httpUrlConnection.setUseCaches(false);
             httpUrlConnection.setDoOutput(true);
             httpUrlConnection.setDoInput(true);
+            httpUrlConnection.setRequestMethod("POST");
+            httpUrlConnection.setRequestProperty("Connection", "Keep-Alive");
+            httpUrlConnection.setRequestProperty("Cache-Control", "no-cache");
+            httpUrlConnection.setRequestProperty(
+                    "Content-Type", "multipart/form-data;boundary=" + boundary);
             //Create a POST method and send the data to the URL specified
-         
+
+            DataOutputStream request = new DataOutputStream(
+                    httpUrlConnection.getOutputStream());
+
+            request.writeBytes(twoHyphens + boundary + crlf);
+            request.writeBytes("Content-Disposition: form-data; name=\"" +
+                    attachmentName + "\";filename=\"" +
+                    attachmentFileName + "\"" + crlf);
+            request.writeBytes(crlf);
+
+            //Convert file to bytes?
+
+            //End wrapper
+            request.writeBytes(crlf);
+            request.writeBytes(twoHyphens + boundary +
+                    twoHyphens + crlf);
+
+            request.flush();
+            request.close();
 
           } catch (MalformedURLException e) {
             e.printStackTrace();
+            finView.setText(String.format("HTTP Fail"));
+            //finish();
           } catch (IOException e) {
             e.printStackTrace();
+            //The code is Failing here !!
+            finView.setText(String.format("HTTP I/O Fail"));
+            //finish();
           }
 
-          //Close the opened file
+        //Close the opened file
           try {
             fout.close();
           } catch (IOException e) {
             e.printStackTrace();
+            //finish();
           }
+
+        if(val == 1) {
+          //finView.setText(String.format("Completed"));
           //finish(); //Without this The thread keeps running forever
         }
       }
@@ -181,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
   //@WorkerThread
   //@Nullable
   protected int forWard(final Bitmap bitmap, Module module){
-    for(j = 0; j < 100; j++) {
+    for(j = 0; j < 10; j++) {
       try {
         // loading serialized torchscript module from packaged into app android asset model.pt,
         // app/src/model/assets/model.pt
@@ -222,6 +273,7 @@ public class MainActivity extends AppCompatActivity {
         fout.write(Float.toString(moduleForwardDuration).getBytes());
       } catch (FileNotFoundException e) {
         e.printStackTrace();
+        finish();
       } catch (IOException e) {
         finish();
         e.printStackTrace();
