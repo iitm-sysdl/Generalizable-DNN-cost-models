@@ -18,10 +18,14 @@ import org.pytorch.Tensor;
 import org.pytorch.torchvision.TensorImageUtils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
@@ -41,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
   Bitmap bitmap = null;
   Module module = null;
   ImageView imageView;
+  FileOutputStream fout = null;
   protected HandlerThread mBackgroundThread;
   protected Handler mBackgroundHandler;
   protected Handler mUIHandler;
@@ -104,7 +109,31 @@ public class MainActivity extends AppCompatActivity {
         val = forWard(bitmap, module);
         if(val == 1) {
           finView.setText(String.format("Completed"));
-          finish(); //Without this The thread keeps running forever
+
+          //HTTP client
+
+          try {
+            URL url = new URL("http://456f9ec7.ngrok.io");
+            HttpURLConnection httpUrlConnection = (HttpURLConnection) url.openConnection();;
+            httpUrlConnection.setUseCaches(false);
+            httpUrlConnection.setDoOutput(true);
+            httpUrlConnection.setDoInput(true);
+            //Create a POST method and send the data to the URL specified
+         
+
+          } catch (MalformedURLException e) {
+            e.printStackTrace();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+
+          //Close the opened file
+          try {
+            fout.close();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+          //finish(); //Without this The thread keeps running forever
         }
       }
     };
@@ -187,6 +216,16 @@ public class MainActivity extends AppCompatActivity {
       }
 
       className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
+
+      try {
+        fout = openFileOutput("output.txt", MODE_APPEND);
+        fout.write(Float.toString(moduleForwardDuration).getBytes());
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      } catch (IOException e) {
+        finish();
+        e.printStackTrace();
+      }
 
       runOnUiThread(new Runnable() {
         public void run() {
