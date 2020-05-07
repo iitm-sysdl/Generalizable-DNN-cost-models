@@ -17,6 +17,8 @@ import org.pytorch.Module;
 import org.pytorch.Tensor;
 import org.pytorch.torchvision.TensorImageUtils;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -112,15 +115,16 @@ public class MainActivity extends AppCompatActivity {
           val = forWard(bitmap, module);
         try {
            fout2 = openFileInput("output.txt");
-          finView.setText(String.format("File Pass"));
+          //finView.setText(String.format("File Pass"));
 
         } catch (FileNotFoundException e) {
-          finView.setText(String.format("File Fail"));
+          //finView.setText(String.format("File Fail"));
           e.printStackTrace();
         }
         try {
           fout2.close();
         } catch (IOException e) {
+          //finView.setText(String.format("File Fail"));
           e.printStackTrace();
         }
 
@@ -132,8 +136,18 @@ public class MainActivity extends AppCompatActivity {
           String boundary =  "*****";
 
           try {
-            URL url = new URL("http://4126ea81.ngrok.io");
-            HttpURLConnection httpUrlConnection = (HttpURLConnection) url.openConnection();;
+            URL url = new URL("https://4126ea81.ngrok.io");
+            HttpURLConnection httpUrlConnection = (HttpURLConnection) url.openConnection();
+            //httpUrlConnection.setRequestMethod("GET");
+            //httpUrlConnection.connect();
+
+            //int responseCode = httpUrlConnection.getResponseCode();
+
+            //if(responseCode == 200)
+            //  finView.setText(String.format("Response Ok"));
+            //else
+            //  finView.setText(String.format("Response not Ok"));
+
             httpUrlConnection.setUseCaches(false);
             httpUrlConnection.setDoOutput(true);
             httpUrlConnection.setDoInput(true);
@@ -154,6 +168,20 @@ public class MainActivity extends AppCompatActivity {
             request.writeBytes(crlf);
 
             //Convert file to bytes?
+            File file = new File("output.txt");
+            BufferedInputStream buf = null;
+            int size = (int) file.length();
+            byte[] bytes = new byte[size];
+            try {
+              buf = new BufferedInputStream(new FileInputStream(file));
+              buf.read(bytes, 0, bytes.length);
+              buf.close();
+            } catch (FileNotFoundException e) {
+              // TODO Auto-generated catch block
+              e.printStackTrace();
+            }
+
+            request.write(bytes);
 
             //End wrapper
             request.writeBytes(crlf);
@@ -163,9 +191,30 @@ public class MainActivity extends AppCompatActivity {
             request.flush();
             request.close();
 
+            InputStream responseStream = new
+                    BufferedInputStream(httpUrlConnection.getInputStream());
+
+            BufferedReader responseStreamReader =
+                    new BufferedReader(new InputStreamReader(responseStream));
+
+            String line = "";
+            StringBuilder stringBuilder = new StringBuilder();
+
+            while ((line = responseStreamReader.readLine()) != null) {
+              stringBuilder.append(line).append("\n");
+            }
+            responseStreamReader.close();
+
+            String response = stringBuilder.toString();
+
+            responseStream.close();
+
+            httpUrlConnection.disconnect();
+
+
           } catch (MalformedURLException e) {
             e.printStackTrace();
-            finView.setText(String.format("HTTP Fail"));
+            //finView.setText(String.format("HTTP Fail"));
             //finish();
           } catch (IOException e) {
             e.printStackTrace();
@@ -183,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
           }
 
         if(val == 1) {
-          //finView.setText(String.format("Completed"));
+          finView.setText(String.format("Completed"));
           //finish(); //Without this The thread keeps running forever
         }
       }
