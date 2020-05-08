@@ -1,10 +1,13 @@
 package org.pytorch.helloworld;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
@@ -19,23 +22,28 @@ import org.pytorch.torchvision.TensorImageUtils;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
   TextView textView;
@@ -49,8 +57,9 @@ public class MainActivity extends AppCompatActivity {
   int val = 0;
   Bitmap bitmap = null;
   Module module = null;
+  File file = null;
   ImageView imageView;
-  FileOutputStream fout = null;
+  //FileOutputStream fout = null;
   protected HandlerThread mBackgroundThread;
   protected Handler mBackgroundHandler;
   protected Handler mUIHandler;
@@ -111,125 +120,18 @@ public class MainActivity extends AppCompatActivity {
     Runnable runnable = new Runnable() {
       @Override
       public void run() {
-        FileInputStream fout2 = null;
+        //FileInputStream fout2 = null;
+        try {
           val = forWard(bitmap, module);
-        try {
-           fout2 = openFileInput("output.txt");
-          //finView.setText(String.format("File Pass"));
 
-        } catch (FileNotFoundException e) {
-          //finView.setText(String.format("File Fail"));
-          e.printStackTrace();
-        }
-        try {
-          fout2.close();
         } catch (IOException e) {
-          //finView.setText(String.format("File Fail"));
           e.printStackTrace();
+          finish();
         }
 
         //HTTP client
-          String attachmentName = "output";
-          String attachmentFileName = "output.txt";
-          String crlf = "\r\n";
-          String twoHyphens = "--";
-          String boundary =  "*****";
-
-          try {
-            URL url = new URL("https://4126ea81.ngrok.io");
-            HttpURLConnection httpUrlConnection = (HttpURLConnection) url.openConnection();
-            //httpUrlConnection.setRequestMethod("GET");
-            //httpUrlConnection.connect();
-
-            //int responseCode = httpUrlConnection.getResponseCode();
-
-            //if(responseCode == 200)
-            //  finView.setText(String.format("Response Ok"));
-            //else
-            //  finView.setText(String.format("Response not Ok"));
-
-            httpUrlConnection.setUseCaches(false);
-            httpUrlConnection.setDoOutput(true);
-            httpUrlConnection.setDoInput(true);
-            httpUrlConnection.setRequestMethod("POST");
-            httpUrlConnection.setRequestProperty("Connection", "Keep-Alive");
-            httpUrlConnection.setRequestProperty("Cache-Control", "no-cache");
-            httpUrlConnection.setRequestProperty(
-                    "Content-Type", "multipart/form-data;boundary=" + boundary);
-            //Create a POST method and send the data to the URL specified
-
-            DataOutputStream request = new DataOutputStream(
-                    httpUrlConnection.getOutputStream());
-
-            request.writeBytes(twoHyphens + boundary + crlf);
-            request.writeBytes("Content-Disposition: form-data; name=\"" +
-                    attachmentName + "\";filename=\"" +
-                    attachmentFileName + "\"" + crlf);
-            request.writeBytes(crlf);
-
-            //Convert file to bytes?
-            File file = new File("output.txt");
-            BufferedInputStream buf = null;
-            int size = (int) file.length();
-            byte[] bytes = new byte[size];
-            try {
-              buf = new BufferedInputStream(new FileInputStream(file));
-              buf.read(bytes, 0, bytes.length);
-              buf.close();
-            } catch (FileNotFoundException e) {
-              // TODO Auto-generated catch block
-              e.printStackTrace();
-            }
-
-            request.write(bytes);
-
-            //End wrapper
-            request.writeBytes(crlf);
-            request.writeBytes(twoHyphens + boundary +
-                    twoHyphens + crlf);
-
-            request.flush();
-            request.close();
-
-            InputStream responseStream = new
-                    BufferedInputStream(httpUrlConnection.getInputStream());
-
-            BufferedReader responseStreamReader =
-                    new BufferedReader(new InputStreamReader(responseStream));
-
-            String line = "";
-            StringBuilder stringBuilder = new StringBuilder();
-
-            while ((line = responseStreamReader.readLine()) != null) {
-              stringBuilder.append(line).append("\n");
-            }
-            responseStreamReader.close();
-
-            String response = stringBuilder.toString();
-
-            responseStream.close();
-
-            httpUrlConnection.disconnect();
-
-
-          } catch (MalformedURLException e) {
-            e.printStackTrace();
-            //finView.setText(String.format("HTTP Fail"));
-            //finish();
-          } catch (IOException e) {
-            e.printStackTrace();
-            //The code is Failing here !!
-            finView.setText(String.format("HTTP I/O Fail"));
-            //finish();
-          }
-
-        //Close the opened file
-          try {
-            fout.close();
-          } catch (IOException e) {
-            e.printStackTrace();
-            //finish();
-          }
+        File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        int i = uploadFile(path + "/output.txt");
 
         if(val == 1) {
           finView.setText(String.format("Completed"));
@@ -239,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
     };
     new Thread(runnable).start();
   }
-
 
 
   public static String assetFilePath(Context context, String assetName) throws IOException {
@@ -280,7 +181,23 @@ public class MainActivity extends AppCompatActivity {
 
   //@WorkerThread
   //@Nullable
-  protected int forWard(final Bitmap bitmap, Module module){
+  protected int forWard(final Bitmap bitmap, Module module) throws IOException {
+    int requestCode=0;
+    if (ContextCompat.checkSelfPermission(
+            MainActivity.this,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            == PackageManager.PERMISSION_DENIED){
+
+      ActivityCompat
+              .requestPermissions(
+                      MainActivity.this,
+                      new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                      requestCode);
+    }
+    File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+    file = new File(path,"/output.txt");
+    BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+
     for(j = 0; j < 10; j++) {
       try {
         // loading serialized torchscript module from packaged into app android asset model.pt,
@@ -317,16 +234,11 @@ public class MainActivity extends AppCompatActivity {
 
       className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
 
-      try {
-        fout = openFileOutput("output.txt", MODE_APPEND);
-        fout.write(Float.toString(moduleForwardDuration).getBytes());
-      } catch (FileNotFoundException e) {
-        e.printStackTrace();
-        finish();
-      } catch (IOException e) {
-        finish();
-        e.printStackTrace();
-      }
+      writer.write(Float.toString(moduleForwardDuration));
+      writer.newLine();
+      writer.flush();
+        //fout = openFileOutput("output.txt", MODE_APPEND);
+        //fout.write(Float.toString(moduleForwardDuration).getBytes());
 
       runOnUiThread(new Runnable() {
         public void run() {
@@ -357,6 +269,94 @@ public class MainActivity extends AppCompatActivity {
   //@WorkerThread
   //@Nullable
   //protected abstract void forWard(Bitmap bitmap, Module module);
+
+  public int uploadFile(String sourceFileUri) {
+    String fileName = sourceFileUri;
+    int serverResponseCode = 0;
+    HttpURLConnection conn = null;
+    DataOutputStream dos = null;
+    String lineEnd = "\r\n";
+    String twoHyphens = "--";
+    String boundary = "*****";
+    int bytesRead, bytesAvailable, bufferSize;
+    byte[] buffer;
+    int maxBufferSize = 1 * 1024 * 1024;
+    File sourceFile = new File(sourceFileUri);
+    try{
+      // open a URL connection to the Servlet
+      FileInputStream fileInputStream = new FileInputStream(sourceFile);
+      URL url = new URL("http://a18dac1c.ngrok.io");
+
+      // Open a HTTP  connection to  the URL
+      conn = (HttpURLConnection) url.openConnection();
+      conn.setDoInput(true); // Allow Inputs
+      conn.setDoOutput(true); // Allow Outputs
+      conn.setUseCaches(false); // Don't use a Cached Copy
+      conn.setRequestMethod("POST");
+      conn.setRequestProperty("Connection", "Keep-Alive");
+      conn.setRequestProperty("ENCTYPE", "multipart/form-data");
+      conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
+      conn.setRequestProperty("uploaded_file", fileName);
+
+      dos = new DataOutputStream(conn.getOutputStream());
+
+      dos.writeBytes(twoHyphens + boundary + lineEnd);
+      dos.writeBytes("Content-Disposition: form-data; name=\"" +
+              "uploaded_file" + "\";filename=\"" +
+              fileName + "\"" + lineEnd); //Seems like a point of concern
+
+      dos.writeBytes(lineEnd);
+
+      // create a buffer of  maximum size
+      bytesAvailable = fileInputStream.available();
+
+      bufferSize = Math.min(bytesAvailable, maxBufferSize);
+      buffer = new byte[bufferSize];
+
+      // read file and write it into form...
+      bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+      while (bytesRead > 0) {
+
+        dos.write(buffer, 0, bufferSize);
+        bytesAvailable = fileInputStream.available();
+        bufferSize = Math.min(bytesAvailable, maxBufferSize);
+        bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+      }
+
+      // send multipart form data necesssary after file data...
+      dos.writeBytes(lineEnd);
+      dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+
+      // Responses from the server (code and message)
+      serverResponseCode = conn.getResponseCode();
+      String serverResponseMessage = conn.getResponseMessage();
+
+      Log.i("uploadFile", "HTTP Response is : "
+              + serverResponseMessage + ": " + serverResponseCode);
+
+      fileInputStream.close();
+      dos.flush();
+      dos.close();
+
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (MalformedURLException e) {
+      e.printStackTrace();
+    } catch (ProtocolException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+
+    return serverResponseCode;
+  }
+
+
+
+
 
 }
 
