@@ -37,6 +37,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
@@ -63,6 +65,8 @@ public class MainActivity extends AppCompatActivity {
   protected HandlerThread mBackgroundThread;
   protected Handler mBackgroundHandler;
   protected Handler mUIHandler;
+  SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss");
+  String format = simpleDateFormat.format(new Date());
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -131,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
         //HTTP client
         File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        int i = uploadFile(path + "/output.txt");
+        int i = uploadFile(path + "/output_" + format+ ".txt");
 
         if(val == 1) {
           finView.setText(String.format("Completed"));
@@ -195,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                       requestCode);
     }
     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-    file = new File(path,"/output.txt");
+    file = new File(path,"/output_" + format+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
     for(j = 0; j < 10; j++) {
@@ -233,6 +237,18 @@ public class MainActivity extends AppCompatActivity {
       }
 
       className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
+
+      if(j==0) {
+        writer.write(System.getProperty("os.version"));
+        writer.newLine();
+        writer.write(android.os.Build.VERSION.RELEASE);
+        writer.newLine();
+        writer.write(android.os.Build.DEVICE);
+        writer.newLine();
+        writer.write(android.os.Build.MODEL);
+        writer.newLine();
+        writer.write("Number of Cores: " + Runtime.getRuntime().availableProcessors());
+      }
 
       writer.write(Float.toString(moduleForwardDuration));
       writer.newLine();
@@ -285,7 +301,8 @@ public class MainActivity extends AppCompatActivity {
     try{
       // open a URL connection to the Servlet
       FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      URL url = new URL("http://a18dac1c.ngrok.io");
+      URL url = new URL("http://44d3c9d6.ngrok.io");
+      //URL url = new URL("https://arctic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
       conn = (HttpURLConnection) url.openConnection();
@@ -296,13 +313,13 @@ public class MainActivity extends AppCompatActivity {
       conn.setRequestProperty("Connection", "Keep-Alive");
       conn.setRequestProperty("ENCTYPE", "multipart/form-data");
       conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
-      conn.setRequestProperty("uploaded_file", fileName);
+      conn.setRequestProperty("file", fileName);
 
       dos = new DataOutputStream(conn.getOutputStream());
 
       dos.writeBytes(twoHyphens + boundary + lineEnd);
       dos.writeBytes("Content-Disposition: form-data; name=\"" +
-              "uploaded_file" + "\";filename=\"" +
+              "file" + "\";filename=\"" +
               fileName + "\"" + lineEnd); //Seems like a point of concern
 
       dos.writeBytes(lineEnd);
