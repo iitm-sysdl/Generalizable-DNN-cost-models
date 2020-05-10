@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.PowerManager;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
   TextView msView;
   TextView fileView;
   TextView finView;
+  Tensor outputTensor = null;
   String className = "";
   float moduleForwardDuration = 0.0f;
   float[] scores;
@@ -125,6 +127,9 @@ public class MainActivity extends AppCompatActivity {
       @Override
       public void run() {
         //FileInputStream fout2 = null;
+        //PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        //@SuppressLint("InvalidWakeLockTag") PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "My Tag");
+        //wl.acquire();
         try {
           val = forWard(bitmap, module);
 
@@ -137,10 +142,13 @@ public class MainActivity extends AppCompatActivity {
         File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         int i = uploadFile(path + "/output_" + format+ ".txt");
 
+
+
         if(val == 1) {
           finView.setText(String.format("Completed"));
           //finish(); //Without this The thread keeps running forever
         }
+       // wl.release();
       }
     };
     new Thread(runnable).start();
@@ -202,11 +210,11 @@ public class MainActivity extends AppCompatActivity {
     file = new File(path,"/output_" + format+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
-    for(j = 0; j < 10; j++) {
+    for(j = 0; j < 8; j++) {
       try {
         // loading serialized torchscript module from packaged into app android asset model.pt,
         // app/src/model/assets/model.pt
-        module = Module.load(assetFilePath(this,"model.pt"));
+        module = Module.load(assetFilePath(this, String.format("model_%s.pt", Integer.toString(j))));
       } catch (IOException e) {
         Log.e("PytorchHelloWorld", "Error reading assets", e);
         finish();
@@ -219,9 +227,34 @@ public class MainActivity extends AppCompatActivity {
               TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
 
       // running the model
-      float moduleForwardStartTime = SystemClock.elapsedRealtime();
-      final Tensor outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
-      moduleForwardDuration = SystemClock.elapsedRealtime() - moduleForwardStartTime;
+      float moduleForwardStartTime;
+      moduleForwardDuration = 0.0f;
+      //writer.write(String.format("---------------- Model_%s----------------", Integer.toString(j)));
+      //writer.newLine();
+      //float[] mean_buf = new float[30];
+
+      for(int k = 0; k < 30; ++k) {
+        moduleForwardStartTime = SystemClock.elapsedRealtime();
+        outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
+        //mean_buf[k] = SystemClock.elapsedRealtime() - moduleForwardStartTime;
+        moduleForwardDuration = SystemClock.elapsedRealtime() - moduleForwardStartTime;
+        writer.write(String.format("%s", Float.toString(moduleForwardDuration)));
+        if(k!=29)
+          writer.write(String.format(","));
+     /*   if(k%5 == 4){
+          float lv_mean = 0.0f, lv_var=0.0f;
+          for(int m = 0; m <= k; ++m) {
+            lv_mean += mean_buf[m];
+          }
+          lv_mean = lv_mean / k;
+          for(int m = 0; m <= k ; ++m){
+            lv_var += (mean_buf[m]-lv_mean)*(mean_buf[m]-lv_mean);
+          }
+          lv_var = lv_var/k;
+          float lv_std = (float) Math.sqrt(lv_var);
+          writer.write(String.format("%s %s", Float.toString(lv_mean), Float.toString(lv_std)));
+        }*/
+      }
 
       // getting tensor content as java array of floats
       scores = outputTensor.getDataAsFloatArray();
@@ -238,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
 
       className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
 
-      if(j==0) {
+     /* if(j==0) {
         writer.write(System.getProperty("os.version"));
         writer.newLine();
         writer.write(android.os.Build.VERSION.RELEASE);
@@ -248,9 +281,9 @@ public class MainActivity extends AppCompatActivity {
         writer.write(android.os.Build.MODEL);
         writer.newLine();
         writer.write("Number of Cores: " + Runtime.getRuntime().availableProcessors());
-      }
+      }*/
 
-      writer.write(Float.toString(moduleForwardDuration));
+      //writer.write(Float.toString(moduleForwardDuration));
       writer.newLine();
       writer.flush();
         //fout = openFileOutput("output.txt", MODE_APPEND);
@@ -301,7 +334,7 @@ public class MainActivity extends AppCompatActivity {
     try{
       // open a URL connection to the Servlet
       FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      URL url = new URL("http://44d3c9d6.ngrok.io");
+      URL url = new URL("http://9e5ed911.ngrok.io");
       //URL url = new URL("https://arctic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
