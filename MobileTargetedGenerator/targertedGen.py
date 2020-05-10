@@ -8,6 +8,11 @@ import random
 from random import sample
 from random import randrange
 from torchprofile import profile_macs
+import tensorflow as tf
+import onnx
+import torch.onnx
+import onnx2keras
+from onnx2keras import onnx_to_keras
 
 numSamples = 1
 
@@ -83,11 +88,11 @@ for i in range(numSamples):
         numConvList = numMBsPerDim[inDim]
         outChannelList = channelListPerDim[inDim]
         numConv = random.choice(numConvList)
-        for i in range(numConv):
+        for j in range(numConv):
             inC= outC
             outC = random.choice(outChannelList)
             k = random.choice(kernelList)
-            s = 2 if i == 0 else 1
+            s = 2 if j == 0 else 1
             e = random.choice(expansionList)
             network.append(MobileBottleNeck(inC, outC, e, k, s, paddingDict[k]))
             inDim = mobileBottleneckConv(inDim, inC, outC, e, k, s, paddingDict[k], netEmbedding)
@@ -113,3 +118,14 @@ for i in range(numSamples):
     y = net(x)
     macs = profile_macs(net, x)
     print(macs)
+    net.eval()
+    # traced_script_module = torch.jit.trace(net, x)
+    # traced_script_module.save("model" + str(i)+ ".pt")
+    torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
+    onnx_model = onnx.load("./temp.onnx")
+    onnx.checker.check_model(onnx_model)
+    inpt = ['input']
+    keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
+    converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
+    tflite_model = converter.convert()
+    open('model/model_'+str(i)+'.tflite', "wb").write(tflite_model)
