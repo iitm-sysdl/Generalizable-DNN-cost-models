@@ -10,7 +10,9 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.app.Activity;
 import android.os.PowerManager;
+import android.os.Trace;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -20,6 +22,19 @@ import org.pytorch.IValue;
 import org.pytorch.Module;
 import org.pytorch.Tensor;
 import org.pytorch.torchvision.TensorImageUtils;
+import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.support.common.FileUtil;
+import org.tensorflow.lite.support.common.TensorOperator;
+import org.tensorflow.lite.support.common.TensorProcessor;
+import org.tensorflow.lite.support.common.ops.NormalizeOp;
+import org.tensorflow.lite.support.image.ImageProcessor;
+import org.tensorflow.lite.support.image.TensorImage;
+import org.tensorflow.lite.support.image.ops.ResizeOp;
+import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp;
+import org.tensorflow.lite.support.image.ops.Rot90Op;
+import org.tensorflow.lite.support.label.TensorLabel;
+import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -38,8 +53,11 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.nio.MappedByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
@@ -47,6 +65,7 @@ import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import android.app.Activity;
 
 public class MainActivity extends AppCompatActivity {
   TextView textView;
@@ -67,8 +86,27 @@ public class MainActivity extends AppCompatActivity {
   protected HandlerThread mBackgroundThread;
   protected Handler mBackgroundHandler;
   protected Handler mUIHandler;
+
   SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss");
   String format = simpleDateFormat.format(new Date());
+
+  //Tensorflow code
+  MappedByteBuffer tfliteModel;
+  MainActivity activity;
+  /** An instance of the driver class to run model inference with Tensorflow Lite. */
+  protected Interpreter tflite;
+  /** Options for configuring the Interpreter. */
+  private final Interpreter.Options tfliteOptions = new Interpreter.Options();
+  TensorImage inputImageBuffer;
+  /** Image size along the x axis. */
+  int imageSizeX = 0;
+  TensorBuffer outputProbabilityBuffer;
+  TensorProcessor probabilityProcessor;
+  long runTime=0;
+
+  /** Image size along the y axis. */
+  int imageSizeY = 0;
+  List<String> labels;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +161,10 @@ public class MainActivity extends AppCompatActivity {
     }
     imageView.setImageBitmap(bitmap);
 
+
+
+
+
     Runnable runnable = new Runnable() {
       @Override
       public void run() {
@@ -130,8 +172,24 @@ public class MainActivity extends AppCompatActivity {
         //PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         //@SuppressLint("InvalidWakeLockTag") PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "My Tag");
         //wl.acquire();
+
+        int requestCode=0;
+        if (ContextCompat.checkSelfPermission(
+                MainActivity.this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_DENIED){
+
+          ActivityCompat
+                  .requestPermissions(
+                          MainActivity.this,
+                          new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                          requestCode);
+        }
+
         try {
-          val = forWard(bitmap, module);
+          //val = forWardPyTorch(bitmap, module);
+          //TensorFlow Lite code
+          val = forWardTFLite(inputImageBuffer, module);
 
         } catch (IOException e) {
           e.printStackTrace();
@@ -191,21 +249,77 @@ public class MainActivity extends AppCompatActivity {
     }
   }
 
+  //TensorFlow Lite Code
+  protected int forWardTFLite(TensorImage inputImage, Module module) throws IOException {
+    File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+    file = new File(path,"/output_" + format+ ".txt");
+    BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+    int probabilityTensorIndex = 0;
+    //activity = null; // What is this value?
+
+    for(j = 0; j < 1; j++) {
+
+      try {
+        // loading serialized torchscript module from packaged into app android asset model.pt,
+        // app/src/model/assets/model.pt
+        tfliteModel = FileUtil.loadMappedFile(MainActivity.this, String.format("model_%s.tflite", Integer.toString(j)));
+        //Need to Add NNDelegates later
+        tfliteOptions.setNumThreads(1);
+        tflite = new Interpreter(tfliteModel, tfliteOptions);
+        labels = FileUtil.loadLabels(MainActivity.this, "labels.txt");
+      } catch (IOException e) {
+        Log.e("TFLite World", "Error reading assets", e);
+        finish();
+      }
+
+      //TensorFlow Lite code
+      // Reads type and shape of input and output tensors, respectively.
+      int imageTensorIndex = 0;
+      int[] imageShape = tflite.getInputTensor(imageTensorIndex).shape(); // {1, height, width, 3}
+      imageSizeY = imageShape[1];
+      imageSizeX = imageShape[2];
+      DataType imageDataType = tflite.getInputTensor(imageTensorIndex).dataType();
+      inputImageBuffer = new TensorImage(imageDataType);
+      inputImageBuffer = loadImage(bitmap, 0);
+
+      int[] probabilityShape =
+              tflite.getOutputTensor(probabilityTensorIndex).shape(); // {1, NUM_CLASSES}
+      DataType probabilityDataType = tflite.getOutputTensor(probabilityTensorIndex).dataType();
+
+      outputProbabilityBuffer = TensorBuffer.createFixedSize(probabilityShape, probabilityDataType);
+      probabilityProcessor = new TensorProcessor.Builder().add(getPostprocessNormalizeOp()).build();
+
+
+      long startTimeForReference = 0, endTimeForReference=0;
+
+      for(int k = 0; k < 30; k++) {
+        startTimeForReference = SystemClock.uptimeMillis();
+        tflite.run(inputImageBuffer.getBuffer(), outputProbabilityBuffer.getBuffer().rewind());
+        endTimeForReference = SystemClock.uptimeMillis();
+        runTime = endTimeForReference - startTimeForReference;
+        writer.write(String.format("%s", Float.toString(runTime)));
+        if(k!=29)
+          writer.write(String.format(","));
+      }
+
+      Map<String, Float> labeledProbability =
+              new TensorLabel(labels, probabilityProcessor.process(outputProbabilityBuffer))
+                      .getMapWithFloatValue();
+
+
+      writer.newLine();
+      writer.flush();
+
+
+    }
+
+
+    return 1;
+  }
+
   //@WorkerThread
   //@Nullable
-  protected int forWard(final Bitmap bitmap, Module module) throws IOException {
-    int requestCode=0;
-    if (ContextCompat.checkSelfPermission(
-            MainActivity.this,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            == PackageManager.PERMISSION_DENIED){
-
-      ActivityCompat
-              .requestPermissions(
-                      MainActivity.this,
-                      new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                      requestCode);
-    }
+  protected int forWardPyTorch(final Bitmap bitmap, Module module) throws IOException {
     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
     file = new File(path,"/output_" + format+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
@@ -220,8 +334,6 @@ public class MainActivity extends AppCompatActivity {
         finish();
       }
 
-
-
       // preparing input tensor
       final Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
               TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
@@ -234,10 +346,10 @@ public class MainActivity extends AppCompatActivity {
       //float[] mean_buf = new float[30];
 
       for(int k = 0; k < 30; ++k) {
-        moduleForwardStartTime = SystemClock.elapsedRealtime();
+        moduleForwardStartTime = SystemClock.uptimeMillis(); //SystemClock.elapsedRealtime();
         outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
         //mean_buf[k] = SystemClock.elapsedRealtime() - moduleForwardStartTime;
-        moduleForwardDuration = SystemClock.elapsedRealtime() - moduleForwardStartTime;
+        moduleForwardDuration = SystemClock.uptimeMillis() - moduleForwardStartTime; //SystemClock.elapsedRealtime() - moduleForwardStartTime;;
         writer.write(String.format("%s", Float.toString(moduleForwardDuration)));
         if(k!=29)
           writer.write(String.format(","));
@@ -334,7 +446,7 @@ public class MainActivity extends AppCompatActivity {
     try{
       // open a URL connection to the Servlet
       FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      URL url = new URL("http://9e5ed911.ngrok.io");
+      URL url = new URL("http://0d22a1ec.ngrok.io");
       //URL url = new URL("https://arctic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
@@ -405,7 +517,34 @@ public class MainActivity extends AppCompatActivity {
   }
 
 
+  //TensorFlow Lite Code
 
+  /** Loads input image, and applies preprocessing. */
+  private TensorImage loadImage(final Bitmap bitmap, int sensorOrientation) {
+    // Loads bitmap into a TensorImage.
+    inputImageBuffer.load(bitmap);
+
+    // Creates processor for the TensorImage.
+    int cropSize = Math.min(bitmap.getWidth(), bitmap.getHeight());
+    int numRotation = sensorOrientation / 90;
+    // TODO(b/143564309): Fuse ops inside ImageProcessor.
+    ImageProcessor imageProcessor =
+            new ImageProcessor.Builder()
+                    .add(new ResizeWithCropOrPadOp(cropSize, cropSize))
+                    .add(new ResizeOp(imageSizeX, imageSizeY, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR))
+                    .add(new Rot90Op(numRotation))
+                    .add(getPreprocessNormalizeOp())
+                    .build();
+    return imageProcessor.process(inputImageBuffer);
+  }
+
+  protected TensorOperator getPreprocessNormalizeOp() {
+    return new NormalizeOp(127.5f, 127.5f); //Dummy values -- No significance
+  }
+
+  protected TensorOperator getPostprocessNormalizeOp() {
+    return new NormalizeOp(0.0f, 1.0f);
+  }
 
 
 }
