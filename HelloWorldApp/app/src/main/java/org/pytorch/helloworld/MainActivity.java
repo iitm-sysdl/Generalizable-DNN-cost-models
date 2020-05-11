@@ -14,6 +14,7 @@ import android.app.Activity;
 import android.os.PowerManager;
 import android.os.Trace;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.os.SystemClock;
@@ -102,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
   int imageSizeX = 0;
   TensorBuffer outputProbabilityBuffer;
   TensorProcessor probabilityProcessor;
-  long runTime=0;
+  float runTime=0.0f;
 
   /** Image size along the y axis. */
   int imageSizeY = 0;
@@ -112,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
+    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
     startBackgroundThread();
     setupImageX();
@@ -198,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
 
         //HTTP client
         File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        int i = uploadFile(path + "/output_" + format+ ".txt");
+        int i = uploadFile(path + "/" +android.os.Build.MODEL + "_" + format+ ".txt");
 
 
 
@@ -251,22 +253,24 @@ public class MainActivity extends AppCompatActivity {
 
   //TensorFlow Lite Code
   protected int forWardTFLite(TensorImage inputImage, Module module) throws IOException {
+
     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-    file = new File(path,"/output_" + format+ ".txt");
+    file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
     int probabilityTensorIndex = 0;
     //activity = null; // What is this value?
 
-    for(j = 0; j < 1; j++) {
+
+    for(j = 0; j < 20; j++) {
 
       try {
         // loading serialized torchscript module from packaged into app android asset model.pt,
         // app/src/model/assets/model.pt
-        tfliteModel = FileUtil.loadMappedFile(MainActivity.this, String.format("model_%s.tflite", Integer.toString(j)));
+        tfliteModel = FileUtil.loadMappedFile(MainActivity.this, String.format("model_%s.tflite", Integer.toString(j%2)));
         //Need to Add NNDelegates later
         tfliteOptions.setNumThreads(1);
         tflite = new Interpreter(tfliteModel, tfliteOptions);
-        labels = FileUtil.loadLabels(MainActivity.this, "labels.txt");
+        labels = FileUtil.loadLabels(MainActivity.this, String.format("labels_%s.txt", Integer.toString(j%2)));
       } catch (IOException e) {
         Log.e("TFLite World", "Error reading assets", e);
         finish();
@@ -290,7 +294,7 @@ public class MainActivity extends AppCompatActivity {
       probabilityProcessor = new TensorProcessor.Builder().add(getPostprocessNormalizeOp()).build();
 
 
-      long startTimeForReference = 0, endTimeForReference=0;
+      float startTimeForReference = 0.0f, endTimeForReference=0.0f;
 
       for(int k = 0; k < 30; k++) {
         startTimeForReference = SystemClock.uptimeMillis();
@@ -310,6 +314,15 @@ public class MainActivity extends AppCompatActivity {
       writer.newLine();
       writer.flush();
 
+      runOnUiThread(new Runnable() {
+        public void run() {
+          // showing image on UI
+          //textView.setText(className);
+          msView.setText(String.format("%f ms", runTime));
+          fileView.setText(Integer.toString(j));
+        }
+      });
+
 
     }
 
@@ -321,7 +334,7 @@ public class MainActivity extends AppCompatActivity {
   //@Nullable
   protected int forWardPyTorch(final Bitmap bitmap, Module module) throws IOException {
     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-    file = new File(path,"/output_" + format+ ".txt");
+    file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
     for(j = 0; j < 8; j++) {
@@ -446,7 +459,7 @@ public class MainActivity extends AppCompatActivity {
     try{
       // open a URL connection to the Servlet
       FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      URL url = new URL("http://0d22a1ec.ngrok.io");
+      URL url = new URL("http://8ed9b71b.ngrok.io");
       //URL url = new URL("https://arctic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
