@@ -8,13 +8,14 @@ import random
 from random import sample
 from random import randrange
 from torchprofile import profile_macs
-import tensorflow as tf
-import onnx
-import torch.onnx
-import onnx2keras
-from onnx2keras import onnx_to_keras
+from matplotlib import pyplot as plt
+# import tensorflow as tf
+# import onnx
+# import torch.onnx
+# import onnx2keras
+# from onnx2keras import onnx_to_keras
 
-numSamples = 1
+numSamples = 50
 
 kernelList = [3, 5, 7]
 expansionList = [3, 6]
@@ -64,6 +65,9 @@ def pooling(inDim, kernel, netEmbedding):
     inDim = inDim/kernel
     return inDim
 
+flopsList = []
+modelSizeList = []
+inferenceTimeList = []
 for i in range(numSamples):
     netEmbedding = []
     network = []
@@ -113,19 +117,31 @@ for i in range(numSamples):
     inDim = convolution(inDim, inC, outC, 1, 1, 0, netEmbedding)
 
     net = nn.Sequential(*network)
-    print(net)
+    # print(net)
+    
     x = torch.rand([1,3,224,224])
-    y = net(x)
+    with torch.autograd.profiler.profile() as prof:
+        y = net(x)
     macs = profile_macs(net, x)
-    print(macs)
+    params = sum([p.numel() for p in net.parameters()])
+    flopsList.append(macs/1e6)
+    modelSizeList.append((params*4.0)/(1024**2))
+    inferenceTimeList.append(prof.self_cpu_time_total/1000.0)
+    print('Model ' + str(i) + '  MACS: %f M   ModelSize: %f MB  Inference: %f ms' %(macs/1e6, (params*4.0)/(1024**2), prof.self_cpu_time_total/1000.0))
     net.eval()
     # traced_script_module = torch.jit.trace(net, x)
     # traced_script_module.save("model" + str(i)+ ".pt")
-    torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
-    onnx_model = onnx.load("./temp.onnx")
-    onnx.checker.check_model(onnx_model)
-    inpt = ['input']
-    keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
-    converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
-    tflite_model = converter.convert()
-    open('model/model_'+str(i)+'.tflite', "wb").write(tflite_model)
+    # torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
+    # onnx_model = onnx.load("./temp.onnx")
+    # onnx.checker.check_model(onnx_model)
+    # inpt = ['input']
+    # keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
+    # converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
+    # tflite_model = converter.convert()
+    # open('model/model_'+str(i)+'.tflite', "wb").write(tflite_model)
+plt.boxplot(flopsList)
+plt.show()
+plt.boxplot(modelSizeList)
+plt.show()
+plt.boxplot(inferenceTimeList)
+plt.show()
