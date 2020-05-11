@@ -77,7 +77,7 @@ def mobileBottleneckConv(inDim, inC, outC, expansion, kernel, stride, padding, s
     return inDim
 
 def pooling(inDim, kernel, channels, netEmbedding):
-    netEmbedding.append([0,0,0,0,1, inDim, inDim/kernel, channels, channels, 0, 0, 0, inDim*inDim*outC])
+    netEmbedding.append([0,0,0,0,1, inDim, inDim/kernel, channels, channels, 0, 0, 0, (inDim/kernel)*(inDim/kernel)*kernel*kernel*outC])
     inDim = inDim/kernel
     return inDim
 
