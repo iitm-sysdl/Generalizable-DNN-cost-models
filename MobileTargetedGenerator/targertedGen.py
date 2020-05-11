@@ -9,13 +9,13 @@ from random import sample
 from random import randrange
 from torchprofile import profile_macs
 from matplotlib import pyplot as plt
-# import tensorflow as tf
-# import onnx
-# import torch.onnx
-# import onnx2keras
-# from onnx2keras import onnx_to_keras
+import tensorflow as tf
+import onnx
+import torch.onnx
+import onnx2keras
+from onnx2keras import onnx_to_keras
 
-numSamples = 5
+numSamples = 10
 
 kernelList = [3, 5, 7]
 expansionList = [3, 6]
@@ -153,16 +153,18 @@ for i in range(numSamples):
     inferenceTimeList.append(prof.self_cpu_time_total/1000.0)
     print('Model ' + str(i) +' NumBottle:%d Skips: %d MACS: %f M   ModelSize: %f MB  Inference: %f ms' %(numMB, numSkip, macs/1e6, (params*4.0)/(1024**2), prof.self_cpu_time_total/1000.0))
     net.eval()
-    # traced_script_module = torch.jit.trace(net, x)
-    # traced_script_module.save("model" + str(i)+ ".pt")
-    # torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
-    # onnx_model = onnx.load("./temp.onnx")
-    # onnx.checker.check_model(onnx_model)
-    # inpt = ['input']
-    # keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
-    # converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
-    # tflite_model = converter.convert()
-    # open('model/model_'+str(i)+'.tflite', "wb").write(tflite_model)
+    
+    torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
+    onnx_model = onnx.load("./temp.onnx")
+    onnx.checker.check_model(onnx_model)
+    inpt = ['input']
+    
+    keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
+    converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
+    converter.optimizations = [tf.lite.Optimize.OPTIMIZE_FOR_LATENCY]
+    tflite_model = converter.convert()
+    open('model_latency/model_'+str(i)+'.tflite', "wb").write(tflite_model)
+    
     data=''
     for itr in netEmbedding:
         for itr2 in itr:
@@ -170,10 +172,10 @@ for i in range(numSamples):
     data=data[:-1]
     data=data+'\n'
     file.write(data)
-file.close()
-plt.boxplot(flopsList)
-plt.show()
-plt.boxplot(modelSizeList)
-plt.show()
-plt.boxplot(inferenceTimeList)
-plt.show()
+# file.close()
+# plt.boxplot(flopsList)
+# plt.show()
+# plt.boxplot(modelSizeList)
+# plt.show()
+# plt.boxplot(inferenceTimeList)
+# plt.show()
