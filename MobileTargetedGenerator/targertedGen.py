@@ -110,9 +110,15 @@ def pooling(inDim, kernel, channels, netEmbedding):
 flopsList = []
 modelSizeList = []
 inferenceTimeList = []
-for i in range(numSamples):
-    size = random.choice(modelSize)
-    # size ='large'
+i = 0
+while i < numSamples:
+    if i < numSamples//3:
+        size = 'small'
+    elif i < 2*numSamples//3:
+        size = 'large'
+    else:
+        size = 'giant'
+
     width = random.choice(widthMultiplier)
     netEmbedding = []
     network = []
@@ -182,6 +188,10 @@ for i in range(numSamples):
     with torch.autograd.profiler.profile() as prof:
         y = net(x)
     macs = profile_macs(net, x)
+    if  40000000 < macs < 400000000:
+        i += 1
+    else:
+        continue
     params = sum([p.numel() for p in net.parameters()])
     flopsList.append(macs/1e6)
     modelSizeList.append((params*4.0)/(1024**2))
@@ -208,9 +218,13 @@ for i in range(numSamples):
     data=data+'\n'
     file.write(data)
 file.close()
+
 plt.boxplot(flopsList)
-plt.show()
+plt.savfig('FLOPSboxPlot.png')
+plt.figure()
 plt.boxplot(modelSizeList)
-plt.show()
+plt.savfig('SizeboxPlot.png')
+plt.figure()
 plt.boxplot(inferenceTimeList)
+plt.savfig('TimeboxPlot.png')
 plt.show()
