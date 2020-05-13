@@ -19,7 +19,7 @@ from onnx2keras import onnx_to_keras
 
 random.seed(42)
 
-numSamples = 25
+numSamples = 100
 
 #
 modelSize = ['small', 'large', 'giant']
