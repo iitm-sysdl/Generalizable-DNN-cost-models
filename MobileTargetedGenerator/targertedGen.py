@@ -9,16 +9,23 @@ from random import sample
 from random import randrange
 from torchprofile import profile_macs
 from matplotlib import pyplot as plt
-# import tensorflow as tf
-# import onnx
-# import torch.onnx
-# import onnx2keras
-# from onnx2keras import onnx_to_keras
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
+import onnx
+import torch.onnx
+import onnx2keras
+from onnx2keras import onnx_to_keras
+
+random.seed(42)
 
 numSamples = 25
 
-modelSize = ['small', 'large']
-widthMultiplier = [0.75, 1]
+#
+modelSize = ['small', 'large', 'giant']
+# 40% Probability 0.75
+widthMultiplier = [0.75, 0.75, 1, 1, 1]
+
 kernelList = {'small':[3, 5], 
               'large':[3, 5, 7],
               'giant': [3,5,7]
@@ -104,8 +111,8 @@ flopsList = []
 modelSizeList = []
 inferenceTimeList = []
 for i in range(numSamples):
-    # size = random.choice(modelSize)
-    size ='small'
+    size = random.choice(modelSize)
+    # size ='large'
     width = random.choice(widthMultiplier)
     netEmbedding = []
     network = []
@@ -182,25 +189,25 @@ for i in range(numSamples):
     print('Model ' + str(i) +' NumBottle:%d Skips: %d MACS: %f M   ModelSize: %f MB  Inference: %f ms' %(numMB, numSkip, macs/1e6, (params*4.0)/(1024**2), prof.self_cpu_time_total/1000.0))
     net.eval()
     
-    # torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
-    # onnx_model = onnx.load("./temp.onnx")
-    # onnx.checker.check_model(onnx_model)
-    # inpt = ['input']
+    torch.onnx.export(net, x, "temp.onnx", export_params=True, opset_version=10, do_constant_folding=True, input_names=["input"], output_names=["output"],dynamic_axes={"input" : {0: "batch_size"},"output" : {0: "batch_size"}})
+    onnx_model = onnx.load("./temp.onnx")
+    onnx.checker.check_model(onnx_model)
+    inpt = ['input']
     
-    # keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
-    # converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
-    # converter.optimizations = [tf.lite.Optimize.OPTIMIZE_FOR_LATENCY]
-    # tflite_model = converter.convert()
-    # open('model_latency/model_'+str(i)+'.tflite', "wb").write(tflite_model)
+    keras_model = onnx_to_keras(onnx_model=onnx_model, input_names=inpt, change_ordering=True, verbose=False)
+    converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
+    converter.optimizations = [tf.lite.Optimize.OPTIMIZE_FOR_SIZE]
+    tflite_model = converter.convert()
+    open('modelzoo/model_'+str(i)+'.tflite', "wb").write(tflite_model)
     
-    # data=''
-    # for itr in netEmbedding:
-    #     for itr2 in itr:
-    #         data=data+str(itr2)+','
-    # data=data[:-1]
-    # data=data+'\n'
-    # file.write(data)
-# file.close()
+    data=''
+    for itr in netEmbedding:
+        for itr2 in itr:
+            data=data+str(itr2)+','
+    data=data[:-1]
+    data=data+'\n'
+    file.write(data)
+file.close()
 plt.boxplot(flopsList)
 plt.show()
 plt.boxplot(modelSizeList)
