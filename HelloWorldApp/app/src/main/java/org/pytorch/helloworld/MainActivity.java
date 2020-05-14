@@ -40,6 +40,7 @@ import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -79,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
   float[] scores;
   int j = 0;
   int val = 0;
+  byte [] out_buffer;
   Bitmap bitmap = null;
   Module module = null;
   File file = null;
@@ -175,7 +177,8 @@ public class MainActivity extends AppCompatActivity {
         //@SuppressLint("InvalidWakeLockTag") PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "My Tag");
         //wl.acquire();
 
-        int requestCode=0;
+        //Code for permissions for storage
+        /*int requestCode=0;
         if (ContextCompat.checkSelfPermission(
                 MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -186,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
                           MainActivity.this,
                           new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE},
                           requestCode);
-        }
+        }*/
 
         try {
           //val = forWardPyTorch(bitmap, module);
@@ -199,8 +202,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //HTTP client
-        File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        int i = uploadFile(path + "/" +android.os.Build.MODEL + "_" + format+ ".txt");
+        //File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        int i = uploadFile(/*path + "/" +*/android.os.Build.MODEL + "_" + format+ ".txt");
 
 
 
@@ -253,27 +256,29 @@ public class MainActivity extends AppCompatActivity {
 
   //TensorFlow Lite Code
   protected int forWardTFLite(TensorImage inputImage, Module module) throws IOException {
-
+    /*
     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
     file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+    */
     int probabilityTensorIndex = 0;
     //activity = null; // What is this value?
+    ByteArrayOutputStream out_val = new ByteArrayOutputStream();
 
-
-    for(j = 0; j < 20; j++) {
+    for(j = 0; j < 50; j++) {
 
       try {
         // loading serialized torchscript module from packaged into app android asset model.pt,
         // app/src/model/assets/model.pt
-        tfliteModel = FileUtil.loadMappedFile(MainActivity.this, String.format("model_%s.tflite", Integer.toString(j%2)));
+        tfliteModel = FileUtil.loadMappedFile(MainActivity.this, String.format("model_%s.tflite", Integer.toString(j)));
         //Need to Add NNDelegates later
         tfliteOptions.setNumThreads(1);
         tflite = new Interpreter(tfliteModel, tfliteOptions);
-        labels = FileUtil.loadLabels(MainActivity.this, String.format("labels_%s.txt", Integer.toString(j%2)));
+        labels = FileUtil.loadLabels(MainActivity.this, "labels_final.txt");
       } catch (IOException e) {
         Log.e("TFLite World", "Error reading assets", e);
         finish();
+        
       }
 
       //TensorFlow Lite code
@@ -301,18 +306,21 @@ public class MainActivity extends AppCompatActivity {
         tflite.run(inputImageBuffer.getBuffer(), outputProbabilityBuffer.getBuffer().rewind());
         endTimeForReference = SystemClock.uptimeMillis();
         runTime = endTimeForReference - startTimeForReference;
-        writer.write(String.format("%s", Float.toString(runTime)));
-        if(k!=29)
-          writer.write(String.format(","));
+        out_val.write(String.format("%s", Float.toString(runTime)).getBytes());
+        //writer.write(String.format("%s", Float.toString(runTime)));
+        if(k!=29) {
+          out_val.write(String.format(",").getBytes());
+          //writer.write(String.format(","));
+        }
       }
 
       Map<String, Float> labeledProbability =
               new TensorLabel(labels, probabilityProcessor.process(outputProbabilityBuffer))
                       .getMapWithFloatValue();
 
-
-      writer.newLine();
-      writer.flush();
+      out_val.write(System.lineSeparator().getBytes());
+      //writer.newLine();
+      //writer.flush();
 
       runOnUiThread(new Runnable() {
         public void run() {
@@ -322,10 +330,8 @@ public class MainActivity extends AppCompatActivity {
           fileView.setText(Integer.toString(j));
         }
       });
-
-
     }
-
+    out_buffer = out_val.toByteArray();
 
     return 1;
   }
@@ -455,12 +461,12 @@ public class MainActivity extends AppCompatActivity {
     int bytesRead, bytesAvailable, bufferSize;
     byte[] buffer;
     int maxBufferSize = 1 * 1024 * 1024;
-    File sourceFile = new File(sourceFileUri);
+    //File sourceFile = new File(sourceFileUri);
     try{
       // open a URL connection to the Servlet
-      FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      URL url = new URL("http://8ed9b71b.ngrok.io");
-      //URL url = new URL("https://arctic-thunder.herokuapp.com/");
+      //FileInputStream fileInputStream = new FileInputStream(sourceFile);
+      URL url = new URL("http://c9cb6c46.ngrok.io");
+      //URL url = new URL("https://tropic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
       conn = (HttpURLConnection) url.openConnection();
@@ -483,22 +489,22 @@ public class MainActivity extends AppCompatActivity {
       dos.writeBytes(lineEnd);
 
       // create a buffer of  maximum size
-      bytesAvailable = fileInputStream.available();
+      //bytesAvailable = fileInputStream.available();
 
-      bufferSize = Math.min(bytesAvailable, maxBufferSize);
-      buffer = new byte[bufferSize];
+      //bufferSize = Math.min(bytesAvailable, maxBufferSize);
+      //buffer = new byte[bufferSize];
 
       // read file and write it into form...
-      bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+      //bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
-      while (bytesRead > 0) {
+      //while (bytesRead > 0) {
 
-        dos.write(buffer, 0, bufferSize);
-        bytesAvailable = fileInputStream.available();
-        bufferSize = Math.min(bytesAvailable, maxBufferSize);
-        bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+        dos.write(out_buffer, 0, out_buffer.length);
+        //bytesAvailable = fileInputStream.available();
+        //bufferSize = Math.min(bytesAvailable, maxBufferSize);
+        //bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
-      }
+     // }
 
       // send multipart form data necesssary after file data...
       dos.writeBytes(lineEnd);
@@ -511,7 +517,7 @@ public class MainActivity extends AppCompatActivity {
       Log.i("uploadFile", "HTTP Response is : "
               + serverResponseMessage + ": " + serverResponseCode);
 
-      fileInputStream.close();
+      //fileInputStream.close();
       dos.flush();
       dos.close();
 
