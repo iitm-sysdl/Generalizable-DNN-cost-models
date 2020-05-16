@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
   int imageSizeX = 0;
   TensorBuffer outputProbabilityBuffer;
   TensorProcessor probabilityProcessor;
-  float runTime=0.0f;
+  double runTime=0.0d;
 
   /** Image size along the y axis. */
   int imageSizeY = 0;
@@ -163,8 +163,14 @@ public class MainActivity extends AppCompatActivity {
       Log.e("PytorchHelloWorld", "Error reading assets", e);
       finish();
     }
-    imageView.setImageBitmap(bitmap);
-    textView.setText(String.format("Benchmark in progress. Please don't use phone. The experiment may take around 10-20 mins"));
+
+    runOnUiThread(new Runnable() {
+                    public void run() {
+                      imageView.setImageBitmap(bitmap);
+                      textView.setText(String.format("Benchmark in progress. Please don't use this mobile until the experiment is complete. It takes around 10-20 mins. Keep the mobile unlocked with this app in the foreground."));
+                    }
+                  });
+
 
 
 
@@ -203,7 +209,8 @@ public class MainActivity extends AppCompatActivity {
 
         //HTTP client
         File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        int i = uploadFile(path + "/" + android.os.Build.MODEL + "_" + format+ ".txt");
+        final int i = uploadFile(path + "/" + android.os.Build.MODEL + "_" + format+ ".txt");
+
 
 
 
@@ -211,6 +218,10 @@ public class MainActivity extends AppCompatActivity {
           runOnUiThread(new Runnable() {
             public void run() {
               finView.setText(String.format("Completed"));
+              if(i==200)
+                textView.setText(String.format("Experiment complete. Thank you for your time."));
+              else
+                textView.setText(String.format("Experiment completed but HTTP connection failed. Please contact us personally. Thank you for your time"));
             }
           });
           //finish(); //Without this The thread keeps running forever
@@ -267,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
 
     int probabilityTensorIndex = 0;
     //activity = null; // What is this value?
-    ByteArrayOutputStream out_val = new ByteArrayOutputStream();
+    //ByteArrayOutputStream out_val = new ByteArrayOutputStream();
 
     for(j = 1; j < 123; j++) {
 
@@ -303,15 +314,15 @@ public class MainActivity extends AppCompatActivity {
       probabilityProcessor = new TensorProcessor.Builder().add(getPostprocessNormalizeOp()).build();
 
 
-      float startTimeForReference = 0.0f, endTimeForReference=0.0f;
+      double startTimeForReference = 0.0d, endTimeForReference=0.0d;
 
       for(int k = 0; k < 30; k++) {
-        startTimeForReference = SystemClock.uptimeMillis();
+        startTimeForReference = System.nanoTime();//SystemClock.elapsedRealtimeNanos();//SystemClock.uptimeMillis();
         tflite.run(inputImageBuffer.getBuffer(), outputProbabilityBuffer.getBuffer().rewind());
-        endTimeForReference = SystemClock.uptimeMillis();
-        runTime = endTimeForReference - startTimeForReference;
+        endTimeForReference = System.nanoTime();//SystemClock.elapsedRealtimeNanos();//SystemClock.uptimeMillis();
+        runTime = (endTimeForReference - startTimeForReference) / 1000000;
         //out_val.write(String.format("%s", Float.toString(runTime)).getBytes());
-        writer.write(String.format("%s", Float.toString(runTime)));
+        writer.write(String.format("%s", Double.toString(runTime)));
         if(k!=29) {
           //out_val.write(String.format(",").getBytes());
           writer.write(String.format(","));
@@ -322,7 +333,7 @@ public class MainActivity extends AppCompatActivity {
               new TensorLabel(labels, probabilityProcessor.process(outputProbabilityBuffer))
                       .getMapWithFloatValue();
 
-      out_val.write(System.lineSeparator().getBytes());
+      //out_val.write(System.lineSeparator().getBytes());
       writer.newLine();
       writer.flush();
 
@@ -335,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
         }
       });
     }
-    out_buffer = out_val.toByteArray();
+    //out_buffer = out_val.toByteArray();
 
     return 1;
   }
