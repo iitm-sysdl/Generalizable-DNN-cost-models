@@ -48,7 +48,7 @@ def parse_features():
       temp = [data[i][j * 13:(j + 1) * 13] for j in range((len(data[i]) + 12) // 13 )]
       maxLayer = max(maxLayer, len(temp))
       for j in range(len(temp)):
-            maxFlops=max(maxFlops, int(temp[j][12]))
+            maxFlops=max(maxFlops, float(temp[j][12]))
             maxChannel = max(maxChannel, int(temp[j][7]))
             maxChannel = max(maxChannel, int(temp[j][8]))
       Features.append(temp)
@@ -122,8 +122,8 @@ def main():
     holdoutHW = random.choice(files)
     latency = parse_latency(holdoutHW)
 
-    model = learn_lstm_model(holdoutHW, maxLayers, features, latency, 13)
-        
+    model = learn_lstm_model(holdoutHW, maxLayers, latency, features, 13)
+    #exit()   
 
     for file in files:
         if file == holdoutHW:
