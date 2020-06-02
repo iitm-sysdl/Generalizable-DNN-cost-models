@@ -94,17 +94,16 @@ public class MainActivity extends AppCompatActivity {
 
   SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss");
   String format = simpleDateFormat.format(new Date());
-
+  //GpuDelegate delegate = new GpuDelegate();
+  NnApiDelegate nnApiDelegate = new NnApiDelegate();
   //Tensorflow code
   MappedByteBuffer tfliteModel;
   MainActivity activity;
-  //GpuDelegate delegate = new GpuDelegate();
-  NnApiDelegate nnApiDelegate = new NnApiDelegate();
   /** An instance of the driver class to run model inference with Tensorflow Lite. */
   protected Interpreter tflite;
   /** Options for configuring the Interpreter. */
-  //private final Interpreter.Options tfliteOptions = new Interpreter.Options();
   private final Interpreter.Options tfliteOptions = (new Interpreter.Options()).addDelegate(nnApiDelegate);
+  //private final Interpreter.Options tfliteOptions = new Interpreter.Options();
   TensorImage inputImageBuffer;
   /** Image size along the x axis. */
   int imageSizeX = 0;
@@ -189,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
         //wl.acquire();
 
         //Code for permissions for storage
-        int requestCode=0;
+      /*  int requestCode=0;
         if (ContextCompat.checkSelfPermission(
                 MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -200,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                           MainActivity.this,
                           new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE},
                           requestCode);
-        }
+        }*/
 
         try {
           //val = forWardPyTorch(bitmap, module);
@@ -213,11 +212,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //HTTP client
-        File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        final int i = uploadFile(path + "/" + android.os.Build.MODEL + "_" + format+ getDelegate()+".txt");
+        //File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        final int i = uploadFile(/*path + "/" +*/ android.os.Build.MODEL + "_" + format+".txt");
 
 
-
+        // Clean up
+        //delegate.close();
 
         if(val == 1) {
           runOnUiThread(new Runnable() {
@@ -277,13 +277,13 @@ public class MainActivity extends AppCompatActivity {
   //TensorFlow Lite Code
   protected int forWardTFLite(TensorImage inputImage, Module module) throws IOException {
 
-    File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-    file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ getDelegate()+ ".txt");
-    BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+    //File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+    //file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ ".txt");
+    //BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
     int probabilityTensorIndex = 0;
     //activity = null; // What is this value?
-    //ByteArrayOutputStream out_val = new ByteArrayOutputStream();
+    ByteArrayOutputStream out_val = new ByteArrayOutputStream();
 
     for(j = 1; j < 123; j++) {
 
@@ -326,11 +326,11 @@ public class MainActivity extends AppCompatActivity {
         tflite.run(inputImageBuffer.getBuffer(), outputProbabilityBuffer.getBuffer().rewind());
         endTimeForReference = System.nanoTime();//SystemClock.elapsedRealtimeNanos();//SystemClock.uptimeMillis();
         runTime = (endTimeForReference - startTimeForReference) / 1000000;
-        //out_val.write(String.format("%s", Float.toString(runTime)).getBytes());
-        writer.write(String.format("%s", Double.toString(runTime)));
+        out_val.write(String.format("%s", Double.toString(runTime)).getBytes());
+        //writer.write(String.format("%s", Double.toString(runTime)));
         if(k!=29) {
-          //out_val.write(String.format(",").getBytes());
-          writer.write(String.format(","));
+          out_val.write(String.format(",").getBytes());
+          //writer.write(String.format(","));
         }
       }
 
@@ -338,9 +338,9 @@ public class MainActivity extends AppCompatActivity {
               new TensorLabel(labels, probabilityProcessor.process(outputProbabilityBuffer))
                       .getMapWithFloatValue();
 
-      //out_val.write(System.lineSeparator().getBytes());
-      writer.newLine();
-      writer.flush();
+      out_val.write(System.lineSeparator().getBytes());
+      //writer.newLine();
+      //writer.flush();
 
       runOnUiThread(new Runnable() {
         public void run() {
@@ -351,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
         }
       });
     }
-    //out_buffer = out_val.toByteArray();
+    out_buffer = out_val.toByteArray();
 
     return 1;
   }
@@ -481,11 +481,11 @@ public class MainActivity extends AppCompatActivity {
     int bytesRead, bytesAvailable, bufferSize;
     byte[] buffer;
     int maxBufferSize = 1 * 1024 * 1024;
-    File sourceFile = new File(sourceFileUri);
+    //File sourceFile = new File(sourceFileUri);
     try{
       // open a URL connection to the Servlet
-      FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      URL url = new URL("http://c885a66719ab.ngrok.io");
+      //FileInputStream fileInputStream = new FileInputStream(sourceFile);
+      URL url = new URL("http://e22378a52079.ngrok.io");
       //URL url = new URL("https://tropic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
@@ -509,23 +509,23 @@ public class MainActivity extends AppCompatActivity {
       dos.writeBytes(lineEnd);
 
       // create a buffer of  maximum size
-      bytesAvailable = fileInputStream.available();
+      //bytesAvailable = fileInputStream.available();
 
-      bufferSize = Math.min(bytesAvailable, maxBufferSize);
-      buffer = new byte[bufferSize];
+      //bufferSize = Math.min(bytesAvailable, maxBufferSize);
+      //buffer = new byte[bufferSize];
 
       // read file and write it into form...
-      bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+      //bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
-      while (bytesRead > 0) {
+      //while (bytesRead > 0) {
 
-        //dos.write(out_buffer, 0, out_buffer.length);
-        dos.write(buffer, 0, bufferSize);
-        bytesAvailable = fileInputStream.available();
-        bufferSize = Math.min(bytesAvailable, maxBufferSize);
-        bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+        dos.write(out_buffer, 0, out_buffer.length);
+        //dos.write(buffer, 0, bufferSize);
+        //bytesAvailable = fileInputStream.available();
+        //bufferSize = Math.min(bytesAvailable, maxBufferSize);
+        //bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
-      }
+      //}
 
       // send multipart form data necesssary after file data...
       dos.writeBytes(lineEnd);
@@ -538,7 +538,7 @@ public class MainActivity extends AppCompatActivity {
       Log.i("uploadFile", "HTTP Response is : "
               + serverResponseMessage + ": " + serverResponseCode);
 
-      fileInputStream.close();
+      //fileInputStream.close();
       dos.flush();
       dos.close();
 
