@@ -25,6 +25,8 @@ import org.pytorch.Tensor;
 import org.pytorch.torchvision.TensorImageUtils;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.gpu.GpuDelegate;
+import org.tensorflow.lite.nnapi.NnApiDelegate;
 import org.tensorflow.lite.support.common.FileUtil;
 import org.tensorflow.lite.support.common.TensorOperator;
 import org.tensorflow.lite.support.common.TensorProcessor;
@@ -96,10 +98,13 @@ public class MainActivity extends AppCompatActivity {
   //Tensorflow code
   MappedByteBuffer tfliteModel;
   MainActivity activity;
+  //GpuDelegate delegate = new GpuDelegate();
+  NnApiDelegate nnApiDelegate = new NnApiDelegate();
   /** An instance of the driver class to run model inference with Tensorflow Lite. */
   protected Interpreter tflite;
   /** Options for configuring the Interpreter. */
-  private final Interpreter.Options tfliteOptions = new Interpreter.Options();
+  //private final Interpreter.Options tfliteOptions = new Interpreter.Options();
+  private final Interpreter.Options tfliteOptions = (new Interpreter.Options()).addDelegate(nnApiDelegate);
   TensorImage inputImageBuffer;
   /** Image size along the x axis. */
   int imageSizeX = 0;
@@ -209,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
 
         //HTTP client
         File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        final int i = uploadFile(path + "/" + android.os.Build.MODEL + "_" + format+ ".txt");
+        final int i = uploadFile(path + "/" + android.os.Build.MODEL + "_" + format+ getDelegate()+".txt");
 
 
 
@@ -273,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
   protected int forWardTFLite(TensorImage inputImage, Module module) throws IOException {
 
     File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-    file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ ".txt");
+    file = new File(path,"/"+android.os.Build.MODEL + "_" + format+ getDelegate()+ ".txt");
     BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
     int probabilityTensorIndex = 0;
@@ -480,8 +485,8 @@ public class MainActivity extends AppCompatActivity {
     try{
       // open a URL connection to the Servlet
       FileInputStream fileInputStream = new FileInputStream(sourceFile);
-      //URL url = new URL("http://bd04c30d.ngrok.io");
-      URL url = new URL("https://tropic-thunder.herokuapp.com/");
+      URL url = new URL("http://c885a66719ab.ngrok.io");
+      //URL url = new URL("https://tropic-thunder.herokuapp.com/");
 
       // Open a HTTP  connection to  the URL
       conn = (HttpURLConnection) url.openConnection();
