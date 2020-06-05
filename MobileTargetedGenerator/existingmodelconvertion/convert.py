@@ -2,14 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-import statistics
 import csv
-import platform
-import random
-from random import sample
-from random import randrange
 from torchprofile import profile_macs
-from matplotlib import pyplot as plt
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
@@ -17,8 +11,10 @@ import onnx
 import torch.onnx
 import onnx2keras
 from onnx2keras import onnx_to_keras
+#pip install -U git+https://github.com/qubvel/efficientnet
 import efficientnet.tfkeras as efn 
 from mobilenetv1 import *
+#pip install timm
 import timm
 
 def convertFromTFKeras(net, i):
