@@ -26,7 +26,7 @@ import glob
 import multiprocessing as mp
 import matplotlib.cm
 import argparse
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 numLatency = 100
 
 def parse_latency(file):
@@ -494,35 +494,12 @@ def learn_combined_models(list_val_dict):
 
 def main():
     list_val_dict = {}
-    execTime = []
-    embeddings = "Embeddings.csv"
-    val = False
-    for subdir, dirs, files in os.walk(os.getcwd()):
-        for file in files:
-            if file == "execTime.csv":
-                execTime = file
-                val = True
-            #elif file == "Embeddings.csv":
-            #    embeddings = file
-            #    val = True
-        if val==True:
-            print(execTime, embeddings)
-            print(subdir)
-            tmp_list = []
-            maxLayer, lat_mean, numFeatures = parse_features(subdir, execTime, embeddings)
-            tmp_list.append(maxLayer)
-            tmp_list.append(lat_mean)
-            tmp_list.append(numFeatures)
-            print(numFeatures.shape, tmp_list[2].shape)
-            list_val_dict[os.path.basename(subdir)] = tmp_list
-            val = False
-
     features, maxLayers = parse_features()
     files = glob.glob('*.txt')
     for file in files:
         latency = parse_latency(file)
         tmp_list = []
-        tmp_list.append(maxLayer)
+        tmp_list.append(maxLayers)
         tmp_list.append(latency)
         tmp_list.append(features)
         list_val_dict[file] = tmp_list
