@@ -24,6 +24,7 @@ import csv
 import random
 import math
 import sklearn
+import mlflow
 import mlflow.keras
 from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot as plt
@@ -237,29 +238,35 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   #plt.title(hardware+' Fo25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(hardware+"_"+args.learning_type+'_100percentile.png')
 
-  extractor = tf.keras.Model(outputs=model.get_layer('fc').input, inputs=model.input)
+  extractor = Model(outputs=model.get_layer('fc').input, inputs=model.input)
   extractor.summary()
   from sklearn.neighbors import KNeighborsRegressor
-  knn = KNeighborsRegressor()
-  trainPredict = extractor.predict(trainf)
-  testPredict = extractor.predict(testf)
-  knn.fit(trainPredict, trainy)
-  knntestPred = knn.predict(testPredict)
-
-  testScore = math.sqrt(mean_squared_error(testy, knntestPred))
-  r2_score = sklearn.metrics.r2_score(testy, knntestPred)
-  s_coefficient, pvalue = spearmanr(testy, knntestPred)
-  print('Test Score with kNN : %f RMSE' % (testScore))
-  print("The R^2 Value with kNN for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s with kNN : %f and %f"%(hardware, s_coefficient, pvalue))
-
-  plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
-  sns.scatterplot(testy, knntestPred)
-  plt.title('kNN' + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(hardware+args.learning_type+'_knn.png')
-
+  for i in [1,2,3,4,5,6]:
+    for j in ['uniform', 'distance']:
+        for k in ['auto', 'ball_tree', 'kd_tree', 'brute']:
+            with mlflow.start_run():
+                mlflow.log_param('Num Neighbours', str(i))
+                mlflow.log_param('Weights', str(j))
+                mlflow.log_param('Algorithm', str(k))
+                knn = KNeighborsRegressor(n_neighbors=i, weights=j, algorithm=k)
+                trainPredict = extractor.predict(trainf)
+                testPredict = extractor.predict(testf)
+                knn.fit(trainPredict, trainy)
+                knntestPred = knn.predict(testPredict)
+                testScore = math.sqrt(mean_squared_error(testy, knntestPred))
+                r2_score = sklearn.metrics.r2_score(testy, knntestPred)
+                s_coefficient, pvalue = spearmanr(testy, knntestPred)
+                print('Test Score with kNN : %f RMSE' % (testScore))
+                print("The R^2 Value with kNN for %s:"%(hardware), r2_score)
+                print("The Spearnman Coefficient and p-value for %s with kNN : %f and %f"%(hardware, s_coefficient, pvalue))
+                plt.figure()
+                plt.xlabel("Actual Latency")
+                plt.ylabel("Predicted Latency")
+                sns.scatterplot(testy, knntestPred)
+                plt.title('kNN' + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+                plt.savefig(hardware+args.learning_type+'_knn-'+str(i)+'-'+j+'-'+k+'.png')
+                mlflow.log_metric('R Square',r2_score)
+                mlflow.log_metric('Spearman',s_coefficient)
   #plt.show()
   return model
 
