@@ -627,6 +627,47 @@ def spearmanCorr(net_dict, numSamples):
 
     return sel_list, hw_features_cncat
 
+def pearsonCorr(net_dict, numSamples):
+    index = 0
+    global lat
+    ll = np.array(lat)
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:numLatency, :, :]
+        net_dict[key][1] = net_dict[key][1][:numLatency]
+
+    for key in net_dict:
+        if index == 0:
+            stacked_arr = net_dict[key][1]
+        else:
+            stacked_arr = np.column_stack((stacked_arr, net_dict[key][1]))
+        index+=1
+
+    rho = np.corrcoef(ll)
+
+    print(rho)
+
+    print(rho.shape)
+
+    sel_list = corr_choose(rho, 10, 0.98)
+    print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
+
+    #exit(0)
+
+    hw_features_cncat = []
+
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(len(sel_list)):
+            hw_features_per_device.append(net_dict[key][1][sel_list[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        net_dict[key][1] = np.delete(net_dict[key][1], sel_list, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], sel_list, axis=0)
+
+    return sel_list, hw_features_cncat
+
 
 
 ### Prof. Pratyush's MI implementation
@@ -775,6 +816,8 @@ def learn_combined_models(list_val_dict):
         final_indices, hw_features_cncat = mutual_information_v2(list_val_dict, 30)
     elif args.sampling_type == 'spearmanCorr':
         final_indices, hw_features_cncat = spearmanCorr(list_val_dict, 30)
+    elif args.sampling_type == 'pearsonCorr':
+        final_indices, hw_features_cncat = pearsonCorr(list_val_dict, 30)
     else:
         print("Invalid --sampling_type - Fix")
         exit(0)
