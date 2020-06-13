@@ -123,15 +123,6 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
   val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
   model.load_weights(filepath)
-#   mlflow.set_tag('Optim', opt)
-#   mlflow.set_tag('sampling_type', args.sampling_type)
-#   mlflow.set_tag('learning_type', args.learning_type)
-
-
-  #with mlflow.start_run() as run:
-  #  mlflow.log_keras_model(model, "runs")
-
-  #mlflow.keras.save_model(model, "model")
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
@@ -151,95 +142,42 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(hardware+"_"+args.learning_type+'.png')
 
-  ind = np.argsort(testy)
-
-  testy = testy[ind]
-  testf = testf[ind]
-
-  #testf = np.sort(testf)
-
-  testf_25 = testf[:int(0.25*len(testf))]
-  testy_25 = testy[:int(0.25*len(testy))]
-  testPredict = model.predict(testf_25)
-  testScore = math.sqrt(mean_squared_error(testy_25, testPredict))
-
-  r2_score = sklearn.metrics.r2_score(testy_25, testPredict)
-  s_coefficient, pvalue = spearmanr(testy_25, testPredict)
-
-  print('Test Score: %f RMSE' % (testScore))
-  print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
-
-
-  plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
-  sns.scatterplot(testy_25, testPredict[:,0])
-  #plt.title(hardware+' F25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(hardware+"_"+args.learning_type+'_25percentile.png')
-
-
-  testf_50 = testf[int(0.25*len(testf)):int(0.50*len(testf))]
-  testy_50 = testy[int(0.25*len(testy)):int(0.50*len(testy))]
-  testPredict = model.predict(testf_50)
-  testScore = math.sqrt(mean_squared_error(testy_50, testPredict))
-
-  r2_score = sklearn.metrics.r2_score(testy_50, testPredict)
-  s_coefficient, pvalue = spearmanr(testy_50, testPredict)
-
-  print('Test Score: %f RMSE' % (testScore))
-  print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
-
-  plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
-  sns.scatterplot(testy_50, testPredict[:,0])
-  #plt.title(hardware+' S25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(hardware+"_"+args.learning_type+'_50percentile.png')
-
-
-  testf_75 = testf[int(0.50*len(testf)):int(0.75*len(testf))]
-  testy_75 = testy[int(0.50*len(testy)):int(0.75*len(testy))]
-  testPredict = model.predict(testf_75)
-  testScore = math.sqrt(mean_squared_error(testy_75, testPredict))
-
-  r2_score = sklearn.metrics.r2_score(testy_75, testPredict)
-  s_coefficient, pvalue = spearmanr(testy_75, testPredict)
-
-  print('Test Score: %f RMSE' % (testScore))
-  print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
-
-  plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
-  sns.scatterplot(testy_75, testPredict[:,0])
-  #plt.title(hardware+' T25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(hardware+"_"+args.learning_type+'_75percentile.png')
-
-
-  testf_100 = testf[int(0.75*len(testf)):]
-  testy_100 = testy[int(0.75*len(testy)):]
-  testPredict = model.predict(testf_100)
-  testScore = math.sqrt(mean_squared_error(testy_100, testPredict))
-
-  r2_score = sklearn.metrics.r2_score(testy_100, testPredict)
-  s_coefficient, pvalue = spearmanr(testy_100, testPredict)
-
-  print('Test Score: %f RMSE' % (testScore))
-  print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
-
-  plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
-  sns.scatterplot(testy_100, testPredict[:,0])
-  #plt.title(hardware+' Fo25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(hardware+"_"+args.learning_type+'_100percentile.png')
-
+### Adding Other Regressors
   extractor = Model(outputs=model.get_layer('fc').input, inputs=model.input)
   extractor.summary()
+  trainPredict = extractor.predict(trainf)
+  testPredict = extractor.predict(testf)
+  from sklearn.neighbors import KNeighborsRegressor
+  from sklearn.ensemble import RandomForestRegressor
+  from sklearn.tree import DecisionTreeRegressor
+  from sklearn.svm import SVR
+  from sklearn.kernel_ridge import KernelRidge
+  from xgboost import XGBRegressor
+  from sklearn.neighbors import RadiusNeighborsRegressor
+  from xgboost import XGBRFRegressor
+  knn = KNeighborsRegressor()
+  randForest = RandomForestRegressor()
+  decisionTree = DecisionTreeRegressor()
+  svr = SVR()
+  kernelrdidge = KernelRidge()
+  xgb = XGBRegressor()
+  xgbrf = XGBRFRegressor()
+  modellist = [ ('knn', knn), ('randomForest', randForest), ('dTree', decisionTree), ('svr', svr), ('kerenlrdige', kernelrdidge), ('xgb', xgb), ('xgbrf', xgbrf) ]
+  for name, model in modellist:
+    model.fit(trainPredict, trainy)
+    modeltestPred = model.predict(testPredict)
+    testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
+    r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
+    s_coefficient, pvalue = spearmanr(testy, modeltestPred)
+    print('Test Score with %s : %f RMSE' % (name, testScore))
+    print("The R^2 Value with %s for %s:"%(hardware, name), r2_score)
+    print("The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
+    plt.figure()
+    plt.xlabel("Actual Latency")
+    plt.ylabel("Predicted Latency")
+    sns.scatterplot(testy, modeltestPred)
+    plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+    plt.savefig(hardware+args.learning_type+'_'+name+'.png')
 #   from sklearn.neighbors import KNeighborsRegressor
 #   for i in [1,2,3,4,5,6]:
 #     for j in ['uniform', 'distance']:
