@@ -31,6 +31,7 @@ import os
 import glob
 import multiprocessing as mp
 from keras.callbacks import EarlyStopping
+from keras.callbacks import ModelCheckpoint
 import matplotlib.cm
 import argparse
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -213,14 +214,17 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
  # lr_schedule = optimizers.schedules.ExponentialDecay(initial_learning_rate,
 
   #opt = optimizers.SGD(learning_rate = initial_learning_rate)
-  model.compile(loss='mean_squared_error', optimizer=opt)
+  model.compile(loss='mean_squared_error', optimizer=opt, metrics=[keras.metrics.MeanAbsolutePercentageError()])
   model.summary()
+  #filepath="checkpoint-{loss:.5f}-{val_loss:.5f}-{val_mean_absolute_percentage_error}.hdf5"
+  filepath='model.hdf5'
+  checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
-  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es])
+  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
 
-  mlflow.set_tag('Optim', opt)
-  mlflow.set_tag('sampling_type', args.sampling_type)
-  mlflow.set_tag('learning_type', args.learning_type)
+#   mlflow.set_tag('Optim', opt)
+#   mlflow.set_tag('sampling_type', args.sampling_type)
+#   mlflow.set_tag('learning_type', args.learning_type)
 
 
   #with mlflow.start_run() as run:
@@ -332,7 +336,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   sns.scatterplot(testy_100, testPredict[:,0])
   #plt.title(hardware+' Fo25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(hardware+"_"+args.learning_type+'_100percentile.png')
-
+  
   #plt.show()
   return model
 
