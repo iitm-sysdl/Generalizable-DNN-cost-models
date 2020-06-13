@@ -87,106 +87,6 @@ def parse_features():
 
   return numpyFeatures, maxLayer
 
-'''
-def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape, split=0.7, kNN=False):
-  assert split <= 1 and split > 0
-
-  numSample = len(lat_mean)
-  features = features[:numSample]
-  features, lat_mean = shuffle(features,lat_mean)
-  trainf = features[:int(split*len(features))]
-  trainy = lat_mean[:int(split*len(features))]
-  testf = features[int(split*len(features)):]
-  testy = lat_mean[int(split*len(features)):]
-  print(trainf.shape, trainy.shape, testf.shape, testy.shape)
-
-  #Create an LSTM model
-  model=tf.keras.Sequential()
-  model.add(layers.Masking(mask_value=-1,input_shape=(maxLayer, featuresShape)))
-  model.add(layers.LSTM(20, activation='relu'))
-  model.add(layers.Dense(1))
-  opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-  model.compile(loss='mean_squared_error', optimizer=opt)
-  model.summary()
-  es = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', verbose=1, patience=25)
-  check = tf.keras.callbacks.ModelCheckpoint('Expruns', monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', save_freq='epoch')
-  model.fit(trainf, trainy, epochs=300, batch_size=512, verbose=1, callbacks=[es])
-
-  trainPredict = model.predict(trainf)
-  testPredict = model.predict(testf)
-  trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
-  print('Train Score: %f RMSE' % (trainScore))
-  testScore = math.sqrt(mean_squared_error(testy, testPredict))
-  r2_score = sklearn.metrics.r2_score(testy, testPredict)
-  s_coefficient, pvalue = spearmanr(testy, testPredict)
-  print('Test Score: %f RMSE' % (testScore))
-  print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
-
-  plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
-  sns.scatterplot(testy, testPredict[:,0])
-  plt.title(hardware+' PearR2: '+str(r2_score)+' SpearR2: '+str(s_coefficient))
-  plt.savefig(hardware+'.png')
-  #plt.show()
-
-  ind = np.argsort(testy)
-
-  testy = testy[ind]
-  testf = testf[ind]
-
-  for i in range(4):
-    testf_25 = testf[int(0.25*i*len(testf)):int(0.25*(i+1)*len(testf))]
-    testy_25 = testy[int(0.25*i*len(testy)):int(0.25*(i+1)*len(testy))]
-    testPredict = model.predict(testf_25)
-    testScore = math.sqrt(mean_squared_error(testy_25, testPredict))
-
-    r2_score = sklearn.metrics.r2_score(testy_25, testPredict)
-    s_coefficient, pvalue = spearmanr(testy_25, testPredict)
-
-    print('Test Score: %f RMSE' % (testScore))
-    print("The R^2 Value for %s:"%(hardware), r2_score)
-    print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
-
-
-    plt.figure()
-    plt.xlabel("Actual Latency")
-    plt.ylabel("Predicted Latency")
-    sns.scatterplot(testy_25, testPredict[:,0])
-    #plt.title(hardware+' F25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-    plt.savefig(hardware+"_"+args.learning_type+'_'+str((i+1)*25)+'percentile.png')
-
-
-  if kNN == True:
-    extractor = tf.keras.Model(outputs=model.get_layer('fc').input, inputs=model.input)
-    extractor.summary()
-    from sklearn.neighbors import KNeighborsRegressor
-    knn = KNeighborsRegressor()
-    trainPredict = extractor.predict(trainf)
-    testPredict = extractor.predict(testf)
-    knn.fit(trainPredict, trainy)
-    knntestPred = knn.predict(testPredict)
-
-    testScore = math.sqrt(mean_squared_error(testy, knntestPred))
-    r2_score = sklearn.metrics.r2_score(testy, knntestPred)
-    s_coefficient, pvalue = spearmanr(testy, knntestPred)
-    print('Test Score with kNN : %f RMSE' % (testScore))
-    print("The R^2 Value with kNN for %s:"%(hardware), r2_score)
-    print("The Spearnman Coefficient and p-value for %s with kNN : %f and %f"%(hardware, s_coefficient, pvalue))
-
-    plt.figure()
-    plt.xlabel("Actual Latency")
-    plt.ylabel("Predicted Latency")
-    sns.scatterplot(testy, knntestPred)
-    plt.title('kNN' + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-    plt.savefig(hardware+args.learning_type+'_knn.png')
-
-  return model
-'''
-
-
-
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   numSample = len(lat_mean)
   features = features[:numSample]
@@ -206,7 +106,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   model=Sequential()
   model.add(Masking(mask_value=-1,input_shape=(maxLayer, featuresShape)))
   model.add(LSTM(20, activation='relu'))
-  model.add(Dense(1))
+  model.add(Dense(1, name = 'fc'))
   opt = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 
   #initial_learning_rate = 0.01
@@ -221,7 +121,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
   val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
-
+  model.load_weights(filepath)
 #   mlflow.set_tag('Optim', opt)
 #   mlflow.set_tag('sampling_type', args.sampling_type)
 #   mlflow.set_tag('learning_type', args.learning_type)
@@ -336,7 +236,30 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   sns.scatterplot(testy_100, testPredict[:,0])
   #plt.title(hardware+' Fo25% R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(hardware+"_"+args.learning_type+'_100percentile.png')
-  
+
+  extractor = tf.keras.Model(outputs=model.get_layer('fc').input, inputs=model.input)
+  extractor.summary()
+  from sklearn.neighbors import KNeighborsRegressor
+  knn = KNeighborsRegressor()
+  trainPredict = extractor.predict(trainf)
+  testPredict = extractor.predict(testf)
+  knn.fit(trainPredict, trainy)
+  knntestPred = knn.predict(testPredict)
+
+  testScore = math.sqrt(mean_squared_error(testy, knntestPred))
+  r2_score = sklearn.metrics.r2_score(testy, knntestPred)
+  s_coefficient, pvalue = spearmanr(testy, knntestPred)
+  print('Test Score with kNN : %f RMSE' % (testScore))
+  print("The R^2 Value with kNN for %s:"%(hardware), r2_score)
+  print("The Spearnman Coefficient and p-value for %s with kNN : %f and %f"%(hardware, s_coefficient, pvalue))
+
+  plt.figure()
+  plt.xlabel("Actual Latency")
+  plt.ylabel("Predicted Latency")
+  sns.scatterplot(testy, knntestPred)
+  plt.title('kNN' + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+  plt.savefig(hardware+args.learning_type+'_knn.png')
+
   #plt.show()
   return model
 
