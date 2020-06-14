@@ -470,7 +470,7 @@ def spearmanCorr(net_dict, numSamples):
 
     print(rho.shape)
 
-    sel_list = corr_choose(rho, 10, 0.98)
+    sel_list = corr_choose(rho, numSamples, 0.98)
     print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
 
     #exit(0)
