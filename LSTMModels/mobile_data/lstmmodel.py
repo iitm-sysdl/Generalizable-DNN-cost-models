@@ -187,7 +187,22 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   modellist = [ ('knn', knn), ('randomForest', randForest), ('dTree', decisionTree), ('svr', svr), ('kerenlrdige', kernelrdidge), ('xgb', xgb), ('xgbrf', xgbrf) ]
   for name, model_lowB in modellist:
     model_lowB.fit(trainPredict, trainy)
+    modeltrainPred = model_lowB.predict(trainPredict)
     modeltestPred = model_lowB.predict(testPredict)
+
+    trainScore = math.sqrt(mean_squared_error(trainy, modeltrainPred))
+    r2_score = sklearn.metrics.r2_score(trainy, modeltrainPred)
+    s_coefficient, pvalue = spearmanr(trainy, modeltrainPred)
+    writeToFile('Train Score with %s : %f RMSE' % (name, trainScore))
+    writeToFile("The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
+    writeToFile("The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
+    plt.figure()
+    plt.xlabel("Actual Latency")
+    plt.ylabel("Predicted Latency")
+    sns.scatterplot(trainy, modeltrainPred)
+    #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+    plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_train.png')
+
     testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
     r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
     s_coefficient, pvalue = spearmanr(testy, modeltestPred)
@@ -199,7 +214,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
     plt.ylabel("Predicted Latency")
     sns.scatterplot(testy, modeltestPred)
     #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-    plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'.png')
+    plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_test.png')
   return (model, modellist, extractor)
 
 
