@@ -133,8 +133,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   filepath=args.name+'/models/model.hdf5'
   #checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
-  es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
-  val = model.fit(trainf, trainy, epochs=1, batch_size=512, verbose=1, callbacks=[es, checkpoint])
+  es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=20)
+  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint])
   #val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
   model.load_weights(filepath)
 
@@ -185,10 +185,6 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
     #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
     plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'.png')
   return (model, modellist, extractor)
-
-
-
-
 
 
 '''
