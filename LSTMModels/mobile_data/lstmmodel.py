@@ -544,7 +544,7 @@ def pearsonCorr(net_dict, numSamples):
 
 ### Prof. Pratyush's MI implementation
 
-def mutual_information_v2(net_dict, numSamples):
+def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
     index = 0
     ## Rows - Networks, Columns - Hardware
 
@@ -611,17 +611,19 @@ def mutual_information_v2(net_dict, numSamples):
     print(max_info_lst)
     print(sel_list)
 
-    out_index = len(max_info_lst)
-    epsilon = 0.05
 
-    for i in range(1, len(max_info_lst)):
-        val = max_info_lst[i] - max_info_lst[i-1]
-        if val < epsilon:
-            out_index = i
-            break
-    print(out_index)
-    sel_list = sel_list[:out_index]
-    print(sel_list)
+    if choose_minimal == True:
+        out_index = len(max_info_lst)
+        epsilon = 0.05
+
+        for i in range(1, len(max_info_lst)):
+            val = max_info_lst[i] - max_info_lst[i-1]
+            if val < epsilon:
+                out_index = i
+                break
+        print(out_index)
+        sel_list = sel_list[:out_index]
+        print(sel_list)
     #exit(0)
 
     return sel_list, hw_features_cncat
