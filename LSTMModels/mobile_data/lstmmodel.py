@@ -35,10 +35,20 @@ import multiprocessing as mp
 from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 import matplotlib.cm
+import matplotlib
 import argparse
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.svm import SVR
+from sklearn.kernel_ridge import KernelRidge
+from xgboost import XGBRegressor
+from sklearn.neighbors import RadiusNeighborsRegressor
+from xgboost import XGBRFRegressor
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 numLatency = 100
 lat = []
+matplotlib.use('Agg')
 def parse_latency(file):
     global lat
     data = np.genfromtxt(file, delimiter=',')
@@ -89,16 +99,17 @@ def parse_features():
 
   return numpyFeatures, maxLayer
 
+
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   numSample = len(lat_mean)
   features = features[:numSample]
   features, lat_mean = shuffle(features,lat_mean)
-  trainf = features[:int(0.7*len(features))]
-  trainy = lat_mean[:int(0.7*len(features))]
+  trainf = features[:int(0.99*len(features))]
+  trainy = lat_mean[:int(0.99*len(features))]
   #testf = features[:int(1.0*len(features))]
   #testy = lat_mean[:int(1.0*len(features))]
-  testf = features[int(0.7*len(features)):]
-  testy = lat_mean[int(0.7*len(features)):]
+  testf = features[int(0.99*len(features)):]
+  testy = lat_mean[int(0.99*len(features)):]
   print("================= Dataset Stage ==============")
   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
 
@@ -119,46 +130,38 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   model.compile(loss='mean_squared_error', optimizer=opt, metrics=[keras.metrics.MeanAbsolutePercentageError()])
   model.summary()
   #filepath="checkpoint-{loss:.5f}-{val_loss:.5f}-{val_mean_absolute_percentage_error}.hdf5"
-  filepath='model.hdf5'
+  filepath=args.name+'/models/model.hdf5'
   #checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
-  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint])
+  val = model.fit(trainf, trainy, epochs=1, batch_size=512, verbose=1, callbacks=[es, checkpoint])
   #val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
   model.load_weights(filepath)
 
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
   trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
-  print('Train Score: %f RMSE' % (trainScore))
+  writeToFile('Train Score: %f RMSE' % (trainScore))
   testScore = math.sqrt(mean_squared_error(testy, testPredict))
   r2_score = sklearn.metrics.r2_score(testy, testPredict)
   s_coefficient, pvalue = spearmanr(testy, testPredict)
-  print('Test Score: %f RMSE' % (testScore))
-  print("The R^2 Value for %s:"%(hardware), r2_score)
-  print("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
+  writeToFile('Test Score: %f RMSE' % (testScore))
+  writeToFile("The R^2 Value for %s: %f"%(hardware, r2_score))
+  writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
   plt.xlabel("Actual Latency")
   plt.ylabel("Predicted Latency")
   sns.scatterplot(testy, testPredict[:,0])
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(hardware+"_"+args.learning_type+'.png')
+  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'.png')
 
 ### Adding Other Regressors
   extractor = Model(outputs=model.get_layer('fc').input, inputs=model.input)
   extractor.summary()
+  knn = KNeighborsRegressor()
   trainPredict = extractor.predict(trainf)
   testPredict = extractor.predict(testf)
-  from sklearn.neighbors import KNeighborsRegressor
-  from sklearn.ensemble import RandomForestRegressor
-  from sklearn.tree import DecisionTreeRegressor
-  from sklearn.svm import SVR
-  from sklearn.kernel_ridge import KernelRidge
-  from xgboost import XGBRegressor
-  from sklearn.neighbors import RadiusNeighborsRegressor
-  from xgboost import XGBRFRegressor
-  knn = KNeighborsRegressor()
   randForest = RandomForestRegressor()
   decisionTree = DecisionTreeRegressor()
   svr = SVR()
@@ -166,50 +169,22 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   xgb = XGBRegressor()
   xgbrf = XGBRFRegressor()
   modellist = [ ('knn', knn), ('randomForest', randForest), ('dTree', decisionTree), ('svr', svr), ('kerenlrdige', kernelrdidge), ('xgb', xgb), ('xgbrf', xgbrf) ]
-  for name, model in modellist:
-    model.fit(trainPredict, trainy)
-    modeltestPred = model.predict(testPredict)
+  for name, model_lowB in modellist:
+    model_lowB.fit(trainPredict, trainy)
+    modeltestPred = model_lowB.predict(testPredict)
     testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
     r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
     s_coefficient, pvalue = spearmanr(testy, modeltestPred)
-    print('Test Score with %s : %f RMSE' % (name, testScore))
-    print("The R^2 Value with %s for %s:"%(hardware, name), r2_score)
-    print("The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
+    writeToFile('Test Score with %s : %f RMSE' % (name, testScore))
+    writeToFile("The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
+    writeToFile("The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
     plt.figure()
     plt.xlabel("Actual Latency")
     plt.ylabel("Predicted Latency")
     sns.scatterplot(testy, modeltestPred)
-    plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-    plt.savefig(hardware+args.learning_type+'_'+name+'.png')
-#   from sklearn.neighbors import KNeighborsRegressor
-#   for i in [1,2,3,4,5,6]:
-#     for j in ['uniform', 'distance']:
-#         for k in ['auto', 'ball_tree', 'kd_tree', 'brute']:
-#             with mlflow.start_run():
-#                 mlflow.log_param('Num Neighbours', str(i))
-#                 mlflow.log_param('Weights', str(j))
-#                 mlflow.log_param('Algorithm', str(k))
-#                 knn = KNeighborsRegressor(n_neighbors=i, weights=j, algorithm=k)
-#                 trainPredict = extractor.predict(trainf)
-#                 testPredict = extractor.predict(testf)
-#                 knn.fit(trainPredict, trainy)
-#                 knntestPred = knn.predict(testPredict)
-#                 testScore = math.sqrt(mean_squared_error(testy, knntestPred))
-#                 r2_score = sklearn.metrics.r2_score(testy, knntestPred)
-#                 s_coefficient, pvalue = spearmanr(testy, knntestPred)
-#                 print('Test Score with kNN : %f RMSE' % (testScore))
-#                 print("The R^2 Value with kNN for %s:"%(hardware), r2_score)
-#                 print("The Spearnman Coefficient and p-value for %s with kNN : %f and %f"%(hardware, s_coefficient, pvalue))
-#                 plt.figure()
-#                 plt.xlabel("Actual Latency")
-#                 plt.ylabel("Predicted Latency")
-#                 sns.scatterplot(testy, knntestPred)
-#                 plt.title('kNN' + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-#                 plt.savefig(hardware+args.learning_type+'_knn-'+str(i)+'-'+j+'-'+k+'.png')
-#                 mlflow.log_metric('R Square',r2_score)
-#                 mlflow.log_metric('Spearman',s_coefficient)
-  #plt.show()
-  return model
+    #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+    plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'.png')
+  return (model, modellist, extractor)
 
 
 
@@ -341,6 +316,7 @@ def append_with_net_features(net_dict, hw_features_cncat):
     appended_latencies = []
     index = 0
     for key in net_dict:
+        print("======================================================")
         print(len(hw_features_cncat[index]))
         new_lat_ft = np.tile(hw_features_cncat[index], (net_dict[key][2].shape[0], net_dict[key][2].shape[1], 1))
         temp = np.concatenate((net_dict[key][2], new_lat_ft), axis=2)
@@ -627,24 +603,15 @@ def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
                 max_info = m
         max_info_lst.append(max_info)
         sel_list = sel_list + [max_index]
+
+
     print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
-    for key in net_dict:
-        hw_features_per_device = []
-        for j in range(len(sel_list)):
-            hw_features_per_device.append(net_dict[key][1][sel_list[j]])
-        hw_features_cncat.append(hw_features_per_device)
-
-    #If this is not done separately, the code will break
-    for key in net_dict:
-        net_dict[key][1] = np.delete(net_dict[key][1], sel_list, axis=0)
-        net_dict[key][2] = np.delete(net_dict[key][2], sel_list, axis=0)
-
     plt.figure()
     plt.xlabel('Iterations')
     plt.ylabel('Mutual Information Score')
     plt.title('Mutual Information Score over iterations')
     plt.plot(np.arange(len(max_info_lst)), max_info_lst,'-o')
-    plt.savefig('mutual_info_score.png')
+    plt.savefig(args.name+'/plots/mutual_info_score.png')
     print(max_info_lst)
     print(sel_list)
 
@@ -662,6 +629,19 @@ def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
         sel_list = sel_list[:out_index]
         print(sel_list)
     #exit(0)
+
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(len(sel_list)):
+            hw_features_per_device.append(net_dict[key][1][sel_list[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        net_dict[key][1] = np.delete(net_dict[key][1], sel_list, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], sel_list, axis=0)
+
 
     return sel_list, hw_features_cncat
 
@@ -740,11 +720,14 @@ def learn_combined_models(list_val_dict):
         print("Invalid --sampling_type - Fix")
         exit(0)
 
+
     final_lat, final_features = append_with_net_features(list_val_dict_70, hw_features_cncat)
+    print(final_lat.shape, final_features.shape)
     #final_lat = final_lat / np.amax(final_lat)
     #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
     files = glob.glob('*.txt')
-    model = learn_lstm_model('Mixed Model', list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
+    hardware = 'Mixed Model'
+    model, modellist, extractor = learn_lstm_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
 
     hw_features_cncat = []
     for key in list_val_dict_30:
@@ -764,6 +747,8 @@ def learn_combined_models(list_val_dict):
     testf = final_features_30
     testy = final_lat_30
 
+    print(testf.shape, testy.shape)
+
     testPredict = model.predict(testf)
     testScore = math.sqrt(mean_squared_error(testy, testPredict))
     print('Transfer Test Score: %f RMSE' % (testScore))
@@ -777,7 +762,25 @@ def learn_combined_models(list_val_dict):
     plt.ylabel("Transfer : Predicted Latency")
     sns.scatterplot(testy, testPredict[:,0])
     #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-    plt.savefig('Mixed_Model_transfer.png')
+    plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
+
+    testPredict = extractor.predict(testf)
+
+    for name, model_lowB in modellist:
+      modeltestPred = model_lowB.predict(testPredict)
+      testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
+      r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
+      s_coefficient, pvalue = spearmanr(testy, modeltestPred)
+      writeToFile('Transfer Test Score with %s : %f RMSE' % (name, testScore))
+      writeToFile("Transfer The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
+      writeToFile("Transfer The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
+      plt.figure()
+      plt.xlabel("Actual Latency")
+      plt.ylabel("Predicted Latency")
+      sns.scatterplot(testy, modeltestPred)
+      #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+      plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
+
 
 
     '''
@@ -818,6 +821,16 @@ def learn_combined_models(list_val_dict):
     plt.savefig(hold_out_key+'transfer'+'.png')
     '''
 
+
+def writeToFile(stringVal):
+    meta = open(args.name+'/meta/metadata.txt', "a")
+    meta.write(stringVal)
+    meta.write('\n')
+    meta.close()
+
+
+
+
 def main():
     list_val_dict = {}
     features, maxLayers = parse_features()
@@ -851,7 +864,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = "LSTM Models for Transferrable Cost Models")
     parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data. Options are individual, combined', required=True)
     parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are random, statistical, mutual_info_v1, mutual_info_v2, spearmanCorr', required=True)
+    parser.add_argument("--name", type=str, help = 'Name of the run', required=True)
     args = parser.parse_args()
+    os.mkdir(args.name)
+    os.mkdir(args.name+'/models')
+    os.mkdir(args.name+'/plots')
+    os.mkdir(args.name+'/meta')
     main()
 
 
