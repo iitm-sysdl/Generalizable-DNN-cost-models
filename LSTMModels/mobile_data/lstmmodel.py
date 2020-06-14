@@ -134,7 +134,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   #checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=20)
-  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint])
+  val = model.fit(trainf, trainy, epochs=100, batch_size=512, verbose=1, callbacks=[es, checkpoint])
   #val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
   model.load_weights(filepath)
 
@@ -682,8 +682,7 @@ predict for the held-out hardware without any fine-tuning
 '''
 def learn_combined_models(list_val_dict):
     if args.sampling_type == 'random':
-        maxSamples = 5
-        final_indices = random_indices(maxSamples)
+        final_indices = random_indices(args.numSamples)
     #for key in list_val_dict:
     #list_val_dict_local = list_val_dict.copy() #This was creating a shallow copy
     #list_val_dict_local = copy.deepcopy(list_val_dict)
@@ -701,17 +700,17 @@ def learn_combined_models(list_val_dict):
     #exit(0)
 
     if args.sampling_type == 'random':
-        hw_features_cncat = random_sampling(list_val_dict_70, final_indices, maxSamples)
+        hw_features_cncat = random_sampling(list_val_dict_70, final_indices, args.numSamples)
     elif args.sampling_type == 'statistical':
-        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_70, 30)
+        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_70, args.numSamples)
     elif args.sampling_type == 'mutual_info_v1':
-        final_indices, hw_features_cncat = mutual_information(list_val_dict_70, 30)
+        final_indices, hw_features_cncat = mutual_information(list_val_dict_70, args.numSamples)
     elif args.sampling_type == 'mutual_info_v2':
-        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_70, 30)
+        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_70, args.numSamples, choose_minimal=False)
     elif args.sampling_type == 'spearmanCorr':
-        final_indices, hw_features_cncat = spearmanCorr(list_val_dict_70, 30)
+        final_indices, hw_features_cncat = spearmanCorr(list_val_dict_70, args.numSamples)
     elif args.sampling_type == 'pearsonCorr':
-        final_indices, hw_features_cncat = pearsonCorr(list_val_dict_70, 30)
+        final_indices, hw_features_cncat = pearsonCorr(list_val_dict_70, args.numSamples)
     else:
         print("Invalid --sampling_type - Fix")
         exit(0)
@@ -861,6 +860,7 @@ if __name__ == '__main__':
     parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data. Options are individual, combined', required=True)
     parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are random, statistical, mutual_info_v1, mutual_info_v2, spearmanCorr', required=True)
     parser.add_argument("--name", type=str, help = 'Name of the run', required=True)
+    parser.add_argument("--numSamples", type=int, help = 'Number of Benchmark Samples', required=True)
     args = parser.parse_args()
     os.mkdir(args.name)
     os.mkdir(args.name+'/models')
