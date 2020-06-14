@@ -7,6 +7,7 @@ from keras.models import Model
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Activation
+from sklearn.neighbors import KernelDensity
 from keras.layers import Masking
 from keras.layers import Input
 from keras.layers import Concatenate
@@ -119,9 +120,11 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   model.summary()
   #filepath="checkpoint-{loss:.5f}-{val_loss:.5f}-{val_mean_absolute_percentage_error}.hdf5"
   filepath='model.hdf5'
-  checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
+  #checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
+  checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
-  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
+  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint])
+  #val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
   model.load_weights(filepath)
 
   trainPredict = model.predict(trainf)
@@ -541,6 +544,37 @@ def pearsonCorr(net_dict, numSamples):
     return sel_list, hw_features_cncat
 
 
+def KL(a, b):
+    a = np.asarray(a, dtype=np.float)
+    b = np.asarray(b, dtype=np.float)
+    return np.sum(np.where(a != 0, a * np.log(a / b), 0))
+
+def chooseFirstNetMI(data):
+    kde = np.ones_like(data)
+    print(data.shape)
+    for i in range(data.shape[0]):
+        a = data[i].reshape(-1,1)
+        # print(a.shape)
+        k = KernelDensity(kernel='gaussian', bandwidth=0.5).fit(a)
+        kde[i] = k.score_samples(a) #sample(a.shape[0])
+        kde[i] = np.exp(kde[i])
+    print(kde.shape)
+    meanval = np.mean(kde, axis=0)
+    print(meanval.shape)
+    print(meanval)
+    maxval = -10000000
+    maxindex = 0
+    for i in range(kde.shape[0]):
+        val = KL(meanval, kde[i])
+        print(val)
+        if val >= maxval:
+            maxval = val
+            maxindex = i
+    return maxindex
+
+
+
+
 
 ### Prof. Pratyush's MI implementation
 
@@ -572,8 +606,11 @@ def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
         stacked_arr[i, :] = bins - 1
     # print(stacked_arr[0:5,:])
     # exit()
-    val = np.random.randint(0, nrows)
+    #val = np.random.randint(0, nrows)
     #val = select_network()
+
+    val = chooseFirstNetMI(stacked_arr)
+
     sel_list = [val]
     hw_features_cncat = []
     max_info_lst = []
