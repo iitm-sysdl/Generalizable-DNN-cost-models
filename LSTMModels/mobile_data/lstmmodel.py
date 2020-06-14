@@ -133,8 +133,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   filepath=args.name+'/models/model.hdf5'
   #checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
   checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')#montor can be val_loss or loss
-  es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=20)
-  val = model.fit(trainf, trainy, epochs=100, batch_size=512, verbose=1, callbacks=[es, checkpoint])
+  es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=50)
+  val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint])
   #val = model.fit(trainf, trainy, epochs=250, batch_size=512, verbose=1, callbacks=[es, checkpoint], validation_data=(testf, testy))
   model.load_weights(filepath)
 
@@ -746,11 +746,11 @@ def learn_combined_models(list_val_dict):
 
     testPredict = model.predict(testf)
     testScore = math.sqrt(mean_squared_error(testy, testPredict))
-    print('Transfer Test Score: %f RMSE' % (testScore))
+    writeToFile('Transfer Test Score: %f RMSE' % (testScore))
     r2_score = sklearn.metrics.r2_score(testy, testPredict)
     s_coefficient, pvalue = spearmanr(testy, testPredict)
-    print("The transferred R^2 Value for Held out set is:", r2_score)
-    print("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
+    writeToFile("The transferred R^2 Value for Held out set is:", r2_score)
+    writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
     plt.figure()
     plt.xlabel("Transfer : Actual Latency")
