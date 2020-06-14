@@ -678,29 +678,67 @@ def learn_combined_models(list_val_dict):
     #list_val_dict_local.pop(key)
     #print("%n", len(list_val_dict_local), len(list_val_dict), key)
 
+    ## Splitting the dictionary into 70% and 30%
+    list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
+    list_val_dict_30 = dict(list(list_val_dict.items())[int(0.7*(len(list_val_dict))):])
+
+    print(len(list_val_dict), len(list_val_dict_70), len(list_val_dict_30))
+    #exit(0)
+
     if args.sampling_type == 'random':
-        hw_features_cncat = random_sampling(list_val_dict, final_indices, maxSamples)
+        hw_features_cncat = random_sampling(list_val_dict_70, final_indices, maxSamples)
     elif args.sampling_type == 'statistical':
-        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict, 30)
+        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_70, 30)
     elif args.sampling_type == 'mutual_info_v1':
-        final_indices, hw_features_cncat = mutual_information(list_val_dict, 30)
+        final_indices, hw_features_cncat = mutual_information(list_val_dict_70, 30)
     elif args.sampling_type == 'mutual_info_v2':
-        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict, 30)
+        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_70, 30)
     elif args.sampling_type == 'spearmanCorr':
-        final_indices, hw_features_cncat = spearmanCorr(list_val_dict, 30)
+        final_indices, hw_features_cncat = spearmanCorr(list_val_dict_70, 30)
     elif args.sampling_type == 'pearsonCorr':
-        final_indices, hw_features_cncat = pearsonCorr(list_val_dict, 30)
+        final_indices, hw_features_cncat = pearsonCorr(list_val_dict_70, 30)
     else:
         print("Invalid --sampling_type - Fix")
         exit(0)
 
-    final_lat, final_features = append_with_net_features(list_val_dict, hw_features_cncat)
+    final_lat, final_features = append_with_net_features(list_val_dict_70, hw_features_cncat)
     #final_lat = final_lat / np.amax(final_lat)
     #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
     files = glob.glob('*.txt')
-    model = learn_lstm_model('Mixed Model', list_val_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
+    model = learn_lstm_model('Mixed Model', list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
+
+    hw_features_cncat = []
+    for key in list_val_dict_30:
+        hw_features_per_device = []
+        for j in range(len(final_indices)):
+            hw_features_per_device.append(list_val_dict_30[key][1][final_indices[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+    #If this is not done separately, the code will break
+    for key in list_val_dict_30:
+        list_val_dict_30[key][1] = np.delete(list_val_dict_30[key][1], final_indices, axis=0)
+        list_val_dict_30[key][2] = np.delete(list_val_dict_30[key][2], final_indices, axis=0)
 
 
+    final_lat_30, final_features_30 = append_with_net_features(list_val_dict_30, hw_features_cncat)
+
+    testf = final_features_30
+    testy = final_lat_30
+
+    testPredict = model.predict(testf)
+    testScore = math.sqrt(mean_squared_error(testy, testPredict))
+    print('Transfer Test Score: %f RMSE' % (testScore))
+    r2_score = sklearn.metrics.r2_score(testy, testPredict)
+    s_coefficient, pvalue = spearmanr(testy, testPredict)
+    print("The transferred R^2 Value for Held out set is:", r2_score)
+    print("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
+
+    plt.figure()
+    plt.xlabel("Transfer : Actual Latency")
+    plt.ylabel("Transfer : Predicted Latency")
+    sns.scatterplot(testy, testPredict[:,0])
+    #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+    plt.savefig('Mixed_Model_transfer.png')
 
 
     '''
