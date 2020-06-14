@@ -143,6 +143,22 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
   writeToFile('Train Score: %f RMSE' % (trainScore))
   testScore = math.sqrt(mean_squared_error(testy, testPredict))
+
+  ### Train Model characteristics
+  r2_score = sklearn.metrics.r2_score(trainy, trainPredict)
+  s_coefficient, pvalue = spearmanr(trainy, trainPredict)
+  writeToFile('Train Score: %f RMSE' % (trainScore))
+  writeToFile("The R^2 Value for %s: %f"%(hardware, r2_score))
+  writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
+
+  plt.figure()
+  plt.xlabel("Actual Latency")
+  plt.ylabel("Predicted Latency")
+  sns.scatterplot(trainy, trainPredict[:,0])
+  #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_train.png')
+
+
   r2_score = sklearn.metrics.r2_score(testy, testPredict)
   s_coefficient, pvalue = spearmanr(testy, testPredict)
   writeToFile('Test Score: %f RMSE' % (testScore))
@@ -154,7 +170,7 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   plt.ylabel("Predicted Latency")
   sns.scatterplot(testy, testPredict[:,0])
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'.png')
+  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_test.png')
 
 ### Adding Other Regressors
   extractor = Model(outputs=model.get_layer('fc').input, inputs=model.input)
@@ -749,7 +765,7 @@ def learn_combined_models(list_val_dict):
     writeToFile('Transfer Test Score: %f RMSE' % (testScore))
     r2_score = sklearn.metrics.r2_score(testy, testPredict)
     s_coefficient, pvalue = spearmanr(testy, testPredict)
-    writeToFile("The transferred R^2 Value for Held out set is:", r2_score)
+    writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
     writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
     plt.figure()
