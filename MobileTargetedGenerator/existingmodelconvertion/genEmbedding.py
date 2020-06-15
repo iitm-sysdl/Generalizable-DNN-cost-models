@@ -54,7 +54,7 @@ x = torch.rand([1,3,224,224])
 # net = MobileNet(depth_mul=0.75)
 # net = MobileNet(depth_mul=1.0)
 net = torchvision.models.mobilenet_v2(width_mult=1)
-net = torch.jit.trace(net, x)
+# net = torch.jit.trace(net, x)
 print(net)
 
 # generateEmbedding(net)
