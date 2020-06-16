@@ -740,6 +740,10 @@ def learn_combined_models(list_val_dict):
     hardware = 'Mixed Model'
     model, modellist, extractor = learn_lstm_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
 
+    for key in list_val_dict_30:
+        list_val_dict_30[key][2] = list_val_dict_30[key][2][:numLatency,:,:]
+        list_val_dict_30[key][1] = list_val_dict_30[key][1][:numLatency]
+
     hw_features_cncat = []
     for key in list_val_dict_30:
         hw_features_per_device = []
