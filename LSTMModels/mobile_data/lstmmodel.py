@@ -913,7 +913,7 @@ def writeToFile(stringVal):
     meta.write(stringVal)
     meta.write('\n')
     meta.close()
-
+    print(stringVal)
 
 
 
