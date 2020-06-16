@@ -919,7 +919,7 @@ def dumpSelectedNetworks(s):
     file = open(args.name+'/meta/networkindices.txt', "w")
     text = ''
     for i in range(len(s)):
-        text = text + s[i] + ','
+        text = text + str(s[i]) + ','
     file.write(text)
     file.write('\n')
     file.close()
