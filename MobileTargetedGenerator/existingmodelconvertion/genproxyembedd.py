@@ -11,12 +11,12 @@ file = open("proxylessEmbeddings.csv", 'w')
 ## FC Attributes: in_features': 256, 'out_features': 1000
 ## ReLU Attributes: 
 def convolution(inDim, inC, outC, kernel, stride, padding, netEmbedding):
-    netEmbedding.append([1,0,0,0,0, inDim, inDim/stride, inC, outC, kernel, stride, padding, (inDim/stride)*(inDim/stride)*outC*inC*kernel*kernel*2])
+    netEmbedding.append([1,0,0,0,0, inDim, inDim/stride, inC, outC, kernel, stride, padding, (inDim/stride)*(inDim/stride)*outC*inC*kernel*kernel])
     inDim = inDim/stride
     return inDim
 
 def depthConv(inDim, inC, kernel, stride, padding, netEmbedding):
-    netEmbedding.append([0,1,0,0,0, inDim, inDim/stride, inC, inC, kernel, stride, padding, (inDim/stride)*(inDim/stride)*inC*kernel*kernel*2])
+    netEmbedding.append([0,1,0,0,0, inDim, inDim/stride, inC, inC, kernel, stride, padding, (inDim/stride)*(inDim/stride)*inC*kernel*kernel])
     inDim = inDim/stride
     return inDim
 
@@ -24,7 +24,7 @@ def relu(inDim, channels, netEmbedding):
     netEmbedding.append([0,0,0,1,0, inDim, inDim, channels, channels, 0, 0, 0, inDim*inDim*channels])
 
 def pooling(inDim, kernel, channels, netEmbedding):
-    netEmbedding.append([0,0,0,0,1, inDim, inDim/kernel, channels, channels, 0, 0, 0, (inDim/kernel)*(inDim/kernel)*kernel*kernel*channels])
+    netEmbedding.append([0,0,0,0,1, inDim, inDim/kernel, channels, channels, 0, 0, 0, (inDim/kernel)*(inDim/kernel)*channels])
     inDim = inDim/kernel
     return inDim
 

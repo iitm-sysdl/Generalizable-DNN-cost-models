@@ -11,20 +11,20 @@ file = open("squeezeEmbeddings.csv", 'w')
 ## ReLU Attributes: 
 def convolution(inDim, inC, outC, kernel, stride, padding, netEmbedding):
     outdim = (inDim - kernel + 2*padding)//stride + 1;
-    netEmbedding.append([1,0,0,0,0, inDim, outdim, inC, outC, kernel, stride, padding, outdim*outdim*outC*inC*kernel*kernel*2])
+    netEmbedding.append([1,0,0,0,0, inDim, outdim, inC, outC, kernel, stride, padding, outdim*outdim*outC*inC*kernel*kernel])
     return outdim
 
 def relu(inDim, channels, netEmbedding):
     netEmbedding.append([0,0,0,1,0, inDim, inDim, channels, channels, 0, 0, 0, inDim*inDim*channels])
 
 def pooling(inDim, kernel, channels, netEmbedding):
-    netEmbedding.append([0,0,0,0,1, inDim, inDim/kernel, channels, channels, 0, 0, 0, (inDim/kernel)*(inDim/kernel)*kernel*kernel*channels])
+    netEmbedding.append([0,0,0,0,1, inDim, inDim/kernel, channels, channels, 0, 0, 0, (inDim/kernel)*(inDim/kernel)*channels])
     inDim = inDim/kernel
     return inDim
 
 def maxpool(inDim, kernel, stride, channels, netEmbedding):
     outdim = math.ceil((inDim - kernel)/stride) + 1;
-    netEmbedding.append([0,0,0,0,1, inDim, outdim, channels, channels, 0, 0, 0, outdim*outdim*kernel*kernel*channels])
+    netEmbedding.append([0,0,0,0,1, inDim, outdim, channels, channels, 0, 0, 0, outdim*outdim*channels])
     return outdim
 
 def generateEmbedding(model):
