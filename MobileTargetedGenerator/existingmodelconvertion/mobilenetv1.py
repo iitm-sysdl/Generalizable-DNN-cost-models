@@ -47,7 +47,7 @@ class MobileNet(nn.Module):
     def forward(self, x):
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.layers(out)
-        out = self.avgpool2d(out)
+        out = self.avgpool(out)
         out = torch.flatten(out, start_dim=1)
         out = self.linear(out)
         return out
