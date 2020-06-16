@@ -99,6 +99,53 @@ def parse_features():
 
   return numpyFeatures, maxLayer
 
+def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
+  numSample = len(lat_mean)
+  features = features[:numSample]
+  features, lat_mean = shuffle(features,lat_mean)
+  trainf = features[:int(0.99*len(features))]
+  trainy = lat_mean[:int(0.99*len(features))]
+  testf = features[int(0.99*len(features)):]
+  testy = lat_mean[int(0.99*len(features)):]
+  print("================= Dataset Stage ==============")
+  print(trainf.shape, trainy.shape, testf.shape, testy.shape)
+  trainf = np.reshape(trainf, (trainf.shape[0], trainf.shape[1]*trainf.shape[2]))
+  testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
+  
+  model = XGBRegressor()
+  model.fit(trainf, trainy)
+
+  trainPredict = model.predict(trainf)
+  testPredict = model.predict(testf)
+  trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
+  writeToFile('Train Score: %f RMSE' % (trainScore))
+  testScore = math.sqrt(mean_squared_error(testy, testPredict))
+
+  ### Train Model characteristics
+  r2_score = sklearn.metrics.r2_score(trainy, trainPredict)
+  s_coefficient, pvalue = spearmanr(trainy, trainPredict)
+  writeToFile('Train Score: %f RMSE' % (trainScore))
+  writeToFile("The R^2 Value for %s: %f"%(hardware, r2_score))
+  writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
+
+  plt.figure()
+  plt.xlabel("Actual Latency")
+  plt.ylabel("Predicted Latency")
+  sns.scatterplot(trainy, trainPredict)
+  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_train.png')
+
+  r2_score = sklearn.metrics.r2_score(testy, testPredict)
+  s_coefficient, pvalue = spearmanr(testy, testPredict)
+  writeToFile('Test Score: %f RMSE' % (testScore))
+  writeToFile("The R^2 Value for %s: %f"%(hardware, r2_score))
+  writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
+
+  plt.figure()
+  plt.xlabel("Actual Latency")
+  plt.ylabel("Predicted Latency")
+  sns.scatterplot(testy, testPredict)
+  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_test.png')
+  return model
 
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   numSample = len(lat_mean)
@@ -738,7 +785,10 @@ def learn_combined_models(list_val_dict):
     #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
     files = glob.glob('*.txt')
     hardware = 'Mixed Model'
-    model, modellist, extractor = learn_lstm_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
+    if args.model=='lstm':
+        model, modellist, extractor = learn_lstm_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
+    elif args.model=='xgb':
+        model = learn_xgb_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
 
     for key in list_val_dict_30:
         list_val_dict_30[key][2] = list_val_dict_30[key][2][:numLatency,:,:]
@@ -762,39 +812,60 @@ def learn_combined_models(list_val_dict):
     testf = final_features_30
     testy = final_lat_30
 
-    print(testf.shape, testy.shape)
+    if args.model == 'lstm':
+        print(testf.shape, testy.shape)
 
-    testPredict = model.predict(testf)
-    testScore = math.sqrt(mean_squared_error(testy, testPredict))
-    writeToFile('Transfer Test Score: %f RMSE' % (testScore))
-    r2_score = sklearn.metrics.r2_score(testy, testPredict)
-    s_coefficient, pvalue = spearmanr(testy, testPredict)
-    writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
-    writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
+        testPredict = model.predict(testf)
+        testScore = math.sqrt(mean_squared_error(testy, testPredict))
+        writeToFile('Transfer Test Score: %f RMSE' % (testScore))
+        r2_score = sklearn.metrics.r2_score(testy, testPredict)
+        s_coefficient, pvalue = spearmanr(testy, testPredict)
+        writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
+        writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
-    plt.figure()
-    plt.xlabel("Transfer : Actual Latency")
-    plt.ylabel("Transfer : Predicted Latency")
-    sns.scatterplot(testy, testPredict[:,0])
-    #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-    plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
+        plt.figure()
+        plt.xlabel("Transfer : Actual Latency")
+        plt.ylabel("Transfer : Predicted Latency")
+        sns.scatterplot(testy, testPredict[:,0])
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
 
-    testPredict = extractor.predict(testf)
+        testPredict = extractor.predict(testf)
 
-    for name, model_lowB in modellist:
-      modeltestPred = model_lowB.predict(testPredict)
-      testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
-      r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
-      s_coefficient, pvalue = spearmanr(testy, modeltestPred)
-      writeToFile('Transfer Test Score with %s : %f RMSE' % (name, testScore))
-      writeToFile("Transfer The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
-      writeToFile("Transfer The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
-      plt.figure()
-      plt.xlabel("Actual Latency")
-      plt.ylabel("Predicted Latency")
-      sns.scatterplot(testy, modeltestPred)
-      #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
-      plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
+        for name, model_lowB in modellist:
+            modeltestPred = model_lowB.predict(testPredict)
+            testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
+            r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
+            s_coefficient, pvalue = spearmanr(testy, modeltestPred)
+            writeToFile('Transfer Test Score with %s : %f RMSE' % (name, testScore))
+            writeToFile("Transfer The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
+            writeToFile("Transfer The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
+            plt.figure()
+            plt.xlabel("Actual Latency")
+            plt.ylabel("Predicted Latency")
+            sns.scatterplot(testy, modeltestPred)
+            #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+            plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
+    
+    elif args.models == 'xgb':
+        testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
+    
+        print(testf.shape, testy.shape)
+        testPredict = model.predict(testf)
+        testScore = math.sqrt(mean_squared_error(testy, testPredict))
+        writeToFile('Transfer Test Score: %f RMSE' % (testScore))
+        r2_score = sklearn.metrics.r2_score(testy, testPredict)
+        s_coefficient, pvalue = spearmanr(testy, testPredict)
+        writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
+        writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
+
+        plt.figure()
+        plt.xlabel("Transfer : Actual Latency")
+        plt.ylabel("Transfer : Predicted Latency")
+        sns.scatterplot(testy, testPredict)
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
+
 
 
 
@@ -857,6 +928,9 @@ def main():
         tmp_list.append(latency)
         tmp_list.append(features)
         list_val_dict[file] = tmp_list
+    if args.model != 'lstm' or args.model != 'xgb':
+        print("Invalid--model")
+        exit(0)
     if args.learning_type == 'individual':
         learn_individual_models(list_val_dict)
     elif args.learning_type == 'combined':
@@ -881,6 +955,7 @@ if __name__ == '__main__':
     parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are random, statistical, mutual_info_v1, mutual_info_v2, spearmanCorr', required=True)
     parser.add_argument("--name", type=str, help = 'Name of the run', required=True)
     parser.add_argument("--numSamples", type=int, help = 'Number of Benchmark Samples', required=True)
+    parser.add_argument("--model", type=str, help='Model to be trained', required=True)
     args = parser.parse_args()
     os.mkdir(args.name)
     os.mkdir(args.name+'/models')
