@@ -847,7 +847,7 @@ def learn_combined_models(list_val_dict):
             #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
             plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
     
-    elif args.models == 'xgb':
+    elif args.model == 'xgb':
         testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
     
         print(testf.shape, testy.shape)
@@ -928,7 +928,7 @@ def main():
         tmp_list.append(latency)
         tmp_list.append(features)
         list_val_dict[file] = tmp_list
-    if args.model != 'lstm' or args.model != 'xgb':
+    if args.model != 'lstm' and args.model != 'xgb':
         print("Invalid--model")
         exit(0)
     if args.learning_type == 'individual':
