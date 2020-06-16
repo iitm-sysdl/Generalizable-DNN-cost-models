@@ -4,16 +4,15 @@ import torch.nn.functional as F
 import torchvision
 from torchprofile import profile_macs
 from mobilenetv1 import *
-#pip install timm
-import timm
+import math
 file = open("squeezeEmbeddings.csv", 'w')
 ## Conv Attributes: in_channels': 256, 'out_channels': 256, 'kernel_size': (1, 1), 'stride': (1, 1), 'padding': (0, 0), 'dilation': (1, 1), 'transposed': False, 'output_padding': (0, 0), 'groups': 1,
 ## FC Attributes: in_features': 256, 'out_features': 1000
 ## ReLU Attributes: 
 def convolution(inDim, inC, outC, kernel, stride, padding, netEmbedding):
-    netEmbedding.append([1,0,0,0,0, inDim, inDim/stride, inC, outC, kernel, stride, padding, (inDim/stride)*(inDim/stride)*outC*inC*kernel*kernel*2])
-    inDim = inDim/stride
-    return inDim
+    outdim = (inDim - kernel + 2*padding)//stride + 1;
+    netEmbedding.append([1,0,0,0,0, inDim, outdim, inC, outC, kernel, stride, padding, outdim*outdim*outC*inC*kernel*kernel*2])
+    return outdim
 
 def relu(inDim, channels, netEmbedding):
     netEmbedding.append([0,0,0,1,0, inDim, inDim, channels, channels, 0, 0, 0, inDim*inDim*channels])
@@ -23,8 +22,10 @@ def pooling(inDim, kernel, channels, netEmbedding):
     inDim = inDim/kernel
     return inDim
 
-def maxpool(inDim, kernel, stride, netEmbedding):
-    
+def maxpool(inDim, kernel, stride, channels, netEmbedding):
+    outdim = math.ceil((inDim - kernel)/stride) + 1;
+    netEmbedding.append([0,0,0,0,1, inDim, outdim, channels, channels, 0, 0, 0, outdim*outdim*kernel*kernel*channels])
+    return outdim
 
 def generateEmbedding(model):
     inDim = 224
@@ -46,7 +47,7 @@ def generateEmbedding(model):
         
         elif isinstance(module, nn.MaxPool2d):
             channel = netEmbedding[-1][8]
-            inDim = pooling(inDim, 2, channel, netEmbedding)
+            inDim = maxpool(inDim, module.kernel_size, module.stride, channel, netEmbedding)
 
     data=''
     for itr in netEmbedding:
@@ -77,15 +78,15 @@ x = torch.rand([1,3,224,224])
 # net = timm.create_model('spnasnet_100', pretrained=False)
 # target_platform = "proxyless_mobile_14"
 # net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
-# generateEmbedding(net)
 # print(net)
 # net = torchvision.models.mnasnet0_5()
 # net = torchvision.models.mnasnet0_75()
 # net = torchvision.models.mnasnet1_0()
 # net = torchvision.models.mnasnet1_3()
-# net = torchvision.models.squeezenet1_0()
+net = torchvision.models.squeezenet1_0()
+generateEmbedding(net)
 net = torchvision.models.squeezenet1_1()
-print(net)
+generateEmbedding(net)
 # net = torchvision.models.mobilenet_v2(width_mult=0.75)
 # net = torchvision.models.mobilenet_v2(width_mult=0.5)
 # net = torchvision.models.mobilenet_v2(width_mult=0.25)
