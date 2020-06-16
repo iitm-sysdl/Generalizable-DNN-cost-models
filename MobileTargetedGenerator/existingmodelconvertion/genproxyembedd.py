@@ -10,6 +10,12 @@ file = open("proxylessEmbeddings.csv", 'w')
 ## Conv Attributes: in_channels': 256, 'out_channels': 256, 'kernel_size': (1, 1), 'stride': (1, 1), 'padding': (0, 0), 'dilation': (1, 1), 'transposed': False, 'output_padding': (0, 0), 'groups': 1,
 ## FC Attributes: in_features': 256, 'out_features': 1000
 ## ReLU Attributes: 
+def macs(netEmbedding):
+    flops = 0
+    for i in netEmbedding:
+        flops += i[-1]
+    return flops
+
 def convolution(inDim, inC, outC, kernel, stride, padding, netEmbedding):
     netEmbedding.append([1,0,0,0,0, inDim, inDim/stride, inC, outC, kernel, stride, padding, (inDim/stride)*(inDim/stride)*outC*inC*kernel*kernel])
     inDim = inDim/stride
@@ -66,6 +72,7 @@ def generateEmbedding(model):
     data=data[:-1]
     data=data+'\n'
     file.write(data)
+    return macs(netEmbedding)
 
 x = torch.rand([1,3,224,224])
 # net = MobileNet(depth_mul=0.25)
@@ -83,12 +90,16 @@ x = torch.rand([1,3,224,224])
 # generateEmbedding(net)
 target_platform = "proxyless_mobile"
 net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
-generateEmbedding(net)
+mac = profile_macs(net, x)
+emac = generateEmbedding(net)
+print(mac, emac, emac/mac)
 # net = timm.create_model('fbnetc_100', pretrained=False)
 # net = timm.create_model('spnasnet_100', pretrained=False)
 target_platform = "proxyless_mobile_14"
 net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
-generateEmbedding(net)
+mac = profile_macs(net, x)
+emac = generateEmbedding(net)
+print(mac, emac, emac/mac)
 # print(net)
 # net = torchvision.models.mnasnet0_5()
 # net = torchvision.models.mnasnet0_75()

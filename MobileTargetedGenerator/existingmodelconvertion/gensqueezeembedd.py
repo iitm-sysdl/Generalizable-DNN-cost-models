@@ -8,7 +8,13 @@ import math
 file = open("squeezeEmbeddings.csv", 'w')
 ## Conv Attributes: in_channels': 256, 'out_channels': 256, 'kernel_size': (1, 1), 'stride': (1, 1), 'padding': (0, 0), 'dilation': (1, 1), 'transposed': False, 'output_padding': (0, 0), 'groups': 1,
 ## FC Attributes: in_features': 256, 'out_features': 1000
-## ReLU Attributes: 
+## ReLU Attributes:
+def macs(netEmbedding):
+    flops = 0
+    for i in netEmbedding:
+        flops += i[-1]
+    return flops
+
 def convolution(inDim, inC, outC, kernel, stride, padding, netEmbedding):
     outdim = (inDim - kernel + 2*padding)//stride + 1;
     netEmbedding.append([1,0,0,0,0, inDim, outdim, inC, outC, kernel, stride, padding, outdim*outdim*outC*inC*kernel*kernel])
@@ -56,7 +62,8 @@ def generateEmbedding(model):
     data=data[:-1]
     data=data+'\n'
     file.write(data)
-
+    return macs(netEmbedding)
+    
 x = torch.rand([1,3,224,224])
 # net = MobileNet(depth_mul=0.25)
 # generateEmbedding(net)
@@ -84,9 +91,13 @@ x = torch.rand([1,3,224,224])
 # net = torchvision.models.mnasnet1_0()
 # net = torchvision.models.mnasnet1_3()
 net = torchvision.models.squeezenet1_0()
-generateEmbedding(net)
+mac = profile_macs(net, x)
+emac = generateEmbedding(net)
+print(mac, emac, emac/mac)
 net = torchvision.models.squeezenet1_1()
-generateEmbedding(net)
+mac = profile_macs(net, x)
+emac = generateEmbedding(net)
+print(mac, emac, emac/mac)
 # net = torchvision.models.mobilenet_v2(width_mult=0.75)
 # net = torchvision.models.mobilenet_v2(width_mult=0.5)
 # net = torchvision.models.mobilenet_v2(width_mult=0.25)
