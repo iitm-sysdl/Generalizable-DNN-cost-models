@@ -778,7 +778,7 @@ def learn_combined_models(list_val_dict):
         print("Invalid --sampling_type - Fix")
         exit(0)
 
-
+    dumpSelectedNetworks(final_indices)
     final_lat, final_features = append_with_net_features(list_val_dict_70, hw_features_cncat)
     print(final_lat.shape, final_features.shape)
     #final_lat = final_lat / np.amax(final_lat)
@@ -915,6 +915,15 @@ def writeToFile(stringVal):
     meta.close()
     print(stringVal)
 
+def dumpSelectedNetworks(s):
+    file = open(args.name+'/meta/networkindices.txt', "w")
+    text = ''
+    for i in range(len(s)):
+        text = text + s[i] + ','
+    file.write(text)
+    file.write('\n')
+    file.close()
+    print(s)
 
 
 def main():
