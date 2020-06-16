@@ -67,7 +67,7 @@ def parse_features():
   maxKernel = 7
   maxPadding = 3
 
-  with open('Embeddings.csv', newline='') as f:
+  with open('Embeddings_full.csv', newline='') as f:
       reader = csv.reader(f)
       data = list(reader)
 
