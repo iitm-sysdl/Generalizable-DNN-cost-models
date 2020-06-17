@@ -811,7 +811,7 @@ def learn_combined_models(list_val_dict):
                 s_coefficient, pvalue = spearmanr(testy, testPredict)
                 writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
                 writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
-
+                dumpTocsV([hold_out_key, r2_score])
                 plt.figure()
                 plt.xlabel("Transfer : Actual Latency")
                 plt.ylabel("Transfer : Predicted Latency")
@@ -829,7 +829,7 @@ def learn_combined_models(list_val_dict):
                 s_coefficient, pvalue = spearmanr(testy, testPredict)
                 writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
                 writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
-
+                dumpTocsV([hold_out_key, r2_score])
                 plt.figure()
                 plt.xlabel("Transfer : Actual Latency")
                 plt.ylabel("Transfer : Predicted Latency")
@@ -853,6 +853,14 @@ def dumpSelectedNetworks(s):
     file.close()
     print(s)
 
+def dumpTocsV(s):
+    file = open(args.name+'/meta/transferscore.csv', "a")
+    text = ''
+    for i in range(len(s)):
+        text = text + str(s[i]) + ','
+    file.write(text)
+    file.write('\n')
+    file.close()
 
 def main():
     list_val_dict = {}
