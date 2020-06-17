@@ -118,7 +118,6 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
   trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
-  writeToFile('Train Score: %f RMSE' % (trainScore))
   testScore = math.sqrt(mean_squared_error(testy, testPredict))
 
   ### Train Model characteristics
