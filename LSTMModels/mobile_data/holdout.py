@@ -118,7 +118,6 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
   trainPredict = model.predict(trainf)
   testPredict = model.predict(testf)
   trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
-  writeToFile('Train Score: %f RMSE' % (trainScore))
   testScore = math.sqrt(mean_squared_error(testy, testPredict))
 
   ### Train Model characteristics
@@ -137,8 +136,8 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
   r2_score = sklearn.metrics.r2_score(testy, testPredict)
   s_coefficient, pvalue = spearmanr(testy, testPredict)
   writeToFile('Test Score: %f RMSE' % (testScore))
-  writeToFile("The R^2 Value for %s: %f"%(hardware, r2_score))
-  writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
+  writeToFile("The Test R^2 Value for %s: %f"%(hardware, r2_score))
+  writeToFile("The Test Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
   plt.xlabel("Actual Latency")
