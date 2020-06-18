@@ -905,6 +905,7 @@ def learn_combined_models(list_val_dict):
         r2_score = sklearn.metrics.r2_score(testy, testPredict)
         s_coefficient, pvalue = spearmanr(testy, testPredict)
         writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
+        dumpScores(r2_score)
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
         plt.figure()
