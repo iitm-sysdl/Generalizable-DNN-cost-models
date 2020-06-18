@@ -536,6 +536,17 @@ def spearmanCorr(net_dict, numSamples):
     print(rho.shape)
 
     sel_list = corr_choose(rho, numSamples, 0.98)
+    absoluteListIndex = []
+    if args.networkcluster == "small":
+        for i in sel_list:
+            absoluteListIndex.append(small[i])
+    elif args.networkcluster == "large":
+        for i in sel_list:
+            absoluteListIndex.append(large[i])
+    elif args.networkcluster == "giant":
+        for i in sel_list:
+            absoluteListIndex.append(giant[i])
+    sel_list = absoluteListIndex
     print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
 
     #exit(0)
@@ -697,6 +708,18 @@ def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
     plt.plot(np.arange(len(max_info_lst)), max_info_lst,'-o')
     plt.savefig(args.name+'/plots/mutual_info_score.png')
     print(max_info_lst)
+    
+    absoluteListIndex = []
+    if args.networkcluster == "small":
+        for i in sel_list:
+            absoluteListIndex.append(small[i])
+    elif args.networkcluster == "large":
+        for i in sel_list:
+            absoluteListIndex.append(large[i])
+    elif args.networkcluster == "giant":
+        for i in sel_list:
+            absoluteListIndex.append(giant[i])
+    sel_list = absoluteListIndex
     print(sel_list)
 
 
