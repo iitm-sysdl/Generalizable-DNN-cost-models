@@ -536,6 +536,7 @@ def spearmanCorr(net_dict, numSamples):
     print(rho.shape)
 
     sel_list = corr_choose(rho, numSamples, 0.98)
+    print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
     absoluteListIndex = []
     if args.networkcluster == "small":
         for i in sel_list:
@@ -547,8 +548,6 @@ def spearmanCorr(net_dict, numSamples):
         for i in sel_list:
             absoluteListIndex.append(giant[i])
     sel_list = absoluteListIndex
-    print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
-
     #exit(0)
 
     hw_features_cncat = []
@@ -869,6 +868,7 @@ def learn_combined_models(list_val_dict):
         r2_score = sklearn.metrics.r2_score(testy, testPredict)
         s_coefficient, pvalue = spearmanr(testy, testPredict)
         writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
+        dumpScores(r2_score)
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
         plt.figure()
@@ -972,6 +972,13 @@ def dumpSelectedNetworks(s):
     file.write('\n')
     file.close()
     print(s)
+
+def dumpScores(s):
+    file = open('scores.txt', "a")
+    text = args.name + ',' + str(s) + ','
+    file.write(text)
+    file.write('\n')
+    file.close()
 
 
 def main():
