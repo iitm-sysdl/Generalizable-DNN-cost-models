@@ -46,7 +46,7 @@ from xgboost import XGBRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
 from xgboost import XGBRFRegressor
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-numLatency = 119
+numLatency = 118
 lat = []
 matplotlib.use('Agg')
 def parse_latency(file):
