@@ -974,7 +974,7 @@ def dumpSelectedNetworks(s):
     print(s)
 
 def dumpScores(s):
-    file = open('scores.txt', "a")
+    file = open('scores.csv', "a")
     text = args.name + ',' + str(s) + ','
     file.write(text)
     file.write('\n')
