@@ -46,7 +46,7 @@ from xgboost import XGBRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
 from xgboost import XGBRFRegressor
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-numLatency = 118
+numLatency = 119
 lat = []
 matplotlib.use('Agg')
 def parse_latency(file):
@@ -111,7 +111,7 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
   trainf = np.reshape(trainf, (trainf.shape[0], trainf.shape[1]*trainf.shape[2]))
   testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
-  
+
   model = XGBRegressor()
   model.fit(trainf, trainy)
 
@@ -314,7 +314,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
 def random_indices(maxSamples):
     rand_indices = []
     for i in range(maxSamples):
-        rand_indices.append(random.randint(0,numLatency))
+        rand_indices.append(random.randint(0,numLatency-1))
     return rand_indices
 '''
 Function which computes total MACs of each network and samples maxSamples indices from it based on FLOPS.
@@ -742,74 +742,100 @@ def learn_individual_models(list_val_dict):
 Holds out one hardware at a time and learns a combined model for the remaining hardware and tries to
 predict for the held-out hardware without any fine-tuning
 '''
-def learn_combined_models(list_val_dict):
-    if args.sampling_type == 'random':
+
+def learn_collaborative_models(list_val_dict):
+    final_indices = 0
+    if args.sampling_type == "random":
         final_indices = random_indices(args.numSamples)
-    #for key in list_val_dict:
-    #list_val_dict_local = list_val_dict.copy() #This was creating a shallow copy
-    #list_val_dict_local = copy.deepcopy(list_val_dict)
-    #hold_out_val = list_val_dict_local[key]
-    #hold_out_key = key
-    #print("-------------------Check-------------------: %n ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
-    #list_val_dict_local.pop(key)
-    #print("%n", len(list_val_dict_local), len(list_val_dict), key)
 
-    ## Splitting the dictionary into 70% and 30%
-    list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
-    list_val_dict_30 = dict(list(list_val_dict.items())[int(0.7*(len(list_val_dict))):])
+    ## Split the hardware into a smaller and a larger set
+    list_val_dict_small = dict(list(list_val_dict.items())[:int(0.1*(len(list_val_dict)))])
+    list_val_dict_large = dict(list(list_val_dict.items())[int(0.1*(len(list_val_dict))):])
 
-    print(len(list_val_dict), len(list_val_dict_70), len(list_val_dict_30))
-    #exit(0)
+    if args.model == "lstm":
+        model, modellist, extractor, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict, final_indices, args.numSamples)
+    elif args.model == "xgb":
+        model, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict, final_indices, args.numSamples)
 
+    ### Take a new set and see how it works
+    list_val_dict_set1 = dict(list(list_val_dict_large.items())[:int(0.1*(len(list_val_dict_large)))])
+
+    ######## Transfer for the remaining held-out set #############
+
+    list_val_dict_set1, hw_features_cncat = cncatHardwareRep(list_val_dict_set1, final_indices)
+
+    final_lat_set1, final_features_set1 = append_with_net_features(list_val_dict_set1, hw_features_cncat)
+
+    if args.model == "lstm":
+        checkTransfer(final_lat_set1, final_features_set1, model, final_indices, modellist, extractor, hardware="Set1")
+    elif args.model == "xgb":
+        checkTransfer(final_lat_set1, final_features_set1, model, final_indices, hardware="Set1")
+
+    ######### Evaluate how many network inputs are required to learn the same model ###########
+
+    ######### Fine tune the model with the new batched hardware set ###########################
+
+    ######### Continue this experiment for more batches! #####################################
+
+
+def cncatHardwareRep(net_dict, final_indices):
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:numLatency,:,:]
+        net_dict[key][1] = net_dict[key][1][:numLatency]
+
+    hw_features_cncat = []
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(len(final_indices)):
+            hw_features_per_device.append(net_dict[key][1][final_indices[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        net_dict[key][1] = np.delete(net_dict[key][1], final_indices, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], final_indices, axis=0)
+
+    return net_dict, hw_features_cncat
+
+
+
+def subsetAndLearn(net_dict, final_indices, numSamples):
     if args.sampling_type == 'random':
-        hw_features_cncat = random_sampling(list_val_dict_70, final_indices, args.numSamples)
+        hw_features_cncat = random_sampling(net_dict, final_indices, numSamples)
     elif args.sampling_type == 'statistical':
-        final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_70, args.numSamples)
+        final_indices, hw_features_cncat = sample_hwrepresentation(net_dict, numSamples)
     elif args.sampling_type == 'mutual_info_v1':
-        final_indices, hw_features_cncat = mutual_information(list_val_dict_70, args.numSamples)
+        final_indices, hw_features_cncat = mutual_information(net_dict, numSamples)
     elif args.sampling_type == 'mutual_info_v2':
-        final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_70, args.numSamples, choose_minimal=False)
+        final_indices, hw_features_cncat = mutual_information_v2(net_dict, numSamples, choose_minimal=False)
     elif args.sampling_type == 'spearmanCorr':
-        final_indices, hw_features_cncat = spearmanCorr(list_val_dict_70, args.numSamples)
+        final_indices, hw_features_cncat = spearmanCorr(net_dict, numSamples)
     elif args.sampling_type == 'pearsonCorr':
-        final_indices, hw_features_cncat = pearsonCorr(list_val_dict_70, args.numSamples)
+        final_indices, hw_features_cncat = pearsonCorr(net_dict, numSamples)
     else:
         print("Invalid --sampling_type - Fix")
         exit(0)
 
     dumpSelectedNetworks(final_indices)
-    final_lat, final_features = append_with_net_features(list_val_dict_70, hw_features_cncat)
+    final_lat, final_features = append_with_net_features(net_dict, hw_features_cncat)
     print(final_lat.shape, final_features.shape)
     #final_lat = final_lat / np.amax(final_lat)
     #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
     files = glob.glob('*.txt')
     hardware = 'Mixed Model'
     if args.model=='lstm':
-        model, modellist, extractor = learn_lstm_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
+        model, modellist, extractor = learn_lstm_model(hardware, net_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
+        return model, modellist, extractor, final_indices, final_lat, final_features
     elif args.model=='xgb':
-        model = learn_xgb_model(hardware, list_val_dict_70[files[0]][0], final_lat, final_features, final_features.shape[2])
-
-    for key in list_val_dict_30:
-        list_val_dict_30[key][2] = list_val_dict_30[key][2][:numLatency,:,:]
-        list_val_dict_30[key][1] = list_val_dict_30[key][1][:numLatency]
-
-    hw_features_cncat = []
-    for key in list_val_dict_30:
-        hw_features_per_device = []
-        for j in range(len(final_indices)):
-            hw_features_per_device.append(list_val_dict_30[key][1][final_indices[j]])
-        hw_features_cncat.append(hw_features_per_device)
-
-    #If this is not done separately, the code will break
-    for key in list_val_dict_30:
-        list_val_dict_30[key][1] = np.delete(list_val_dict_30[key][1], final_indices, axis=0)
-        list_val_dict_30[key][2] = np.delete(list_val_dict_30[key][2], final_indices, axis=0)
+        model = learn_xgb_model(hardware, net_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
+        return model, final_indices, final_lat, final_features
 
 
-    final_lat_30, final_features_30 = append_with_net_features(list_val_dict_30, hw_features_cncat)
 
-    testf = final_features_30
-    testy = final_lat_30
+def checkTransfer(lat, features, model, final_indices, modellist = None, extractor = None, hardware="Mixed Model"):
+
+    testf = features
+    testy = lat
 
     if args.model == 'lstm':
         print(testf.shape, testy.shape)
@@ -827,7 +853,7 @@ def learn_combined_models(list_val_dict):
         plt.ylabel("Transfer : Predicted Latency")
         sns.scatterplot(testy, testPredict[:,0])
         #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-        plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
 
         testPredict = extractor.predict(testf)
 
@@ -845,10 +871,10 @@ def learn_combined_models(list_val_dict):
             sns.scatterplot(testy, modeltestPred)
             #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
             plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
-    
+
     elif args.model == 'xgb':
         testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
-    
+
         print(testf.shape, testy.shape)
         testPredict = model.predict(testf)
         testScore = math.sqrt(mean_squared_error(testy, testPredict))
@@ -863,48 +889,92 @@ def learn_combined_models(list_val_dict):
         plt.ylabel("Transfer : Predicted Latency")
         sns.scatterplot(testy, testPredict)
         #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-        plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
 
 
+def learn_combined_models(list_val_dict):
+    final_indices = 0
+    if args.sampling_type == 'random':
+        final_indices = random_indices(args.numSamples)
+
+    ## Splitting the dictionary into 70% and 30%
+    list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
+    list_val_dict_30 = dict(list(list_val_dict.items())[int(0.7*(len(list_val_dict))):])
+
+    print(len(list_val_dict), len(list_val_dict_70), len(list_val_dict_30))
+
+    if args.model == "lstm":
+        model, modellist, extractor, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_70, final_indices, args.numSamples)
+    elif args.model == "xgb":
+        model, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_70, final_indices, args.numSamples)
+
+    ######## Transfer for the remaining held-out set #############
+
+    list_val_dict_30, hw_features_cncat = cncatHardwareRep(list_val_dict_30, final_indices)
+
+    final_lat_30, final_features_30 = append_with_net_features(list_val_dict_30, hw_features_cncat)
+
+    if args.model == "lstm":
+        checkTransfer(final_lat_30, final_features_30, model, final_indices, modellist, extractor)
+    elif args.model == "xgb":
+        checkTransfer(final_lat_30, final_features_30, model, final_indices)
+
+    ########## Calculate Type I and Type II errors ###################
+
+    #calcErrors(testy, testPredict)
 
 
-    '''
-    held_out_hw_feature = []
+from itertools import product
+from itertools import combinations
+from scipy.spatial import distance
 
-    #Create a hardware representation for the held-out hardware -- should reuse previous code
-    for i in range(len(final_indices)):
-        held_out_hw_feature.append(hold_out_val[1][final_indices[i]])
-    hold_out_val[1] = np.delete(hold_out_val[1], final_indices, axis=0)
-    hold_out_val[2] = np.delete(hold_out_val[2], final_indices, axis=0)
+def calcErrors(testy, testPredict):
+    print(testy.shape, testPredict.shape)
 
-    new_lat_ft = np.tile(held_out_hw_feature, (hold_out_val[2].shape[0], hold_out_val[2].shape[1], 1))
-    appended_features = np.concatenate((hold_out_val[2], new_lat_ft), axis=2)
+    print(testy, testPredict)
 
-    features, lat = shuffle(appended_features, hold_out_val[1])
-    trainf = features[:int(0.05*len(features))]
-    trainy = lat[:int(0.05*len(lat))]
-    testf = features[int(0.05*len(features)):]
-    testy = lat[int(0.05*len(features)):]
+    ## testy has each hardware's latency stacked up - one after the other - first 118, second 118 and so on
+    hardwareRange = int(math.ceil(testy.shape[0] / (numLatency-args.numSamples)))
+    print(hardwareRange)
 
+    networkRange = numLatency - args.numSamples
 
-    trainPredict = model.predict(trainf)
-    testPredict = model.predict(testf)
-    trainScore = math.sqrt(mean_squared_error(trainy, trainPredict))
-    print('Train Score: %f RMSE' % (trainScore))
-    testScore = math.sqrt(mean_squared_error(testy, testPredict))
-    print('Test Score: %f RMSE' % (testScore))
-    r2_score = sklearn.metrics.r2_score(testy, testPredict)
-    s_coefficient, pvalue = spearmanr(testy, testPredict)
-    print("The transferred R^2 Value for %s:"%(hold_out_key), r2_score)
-    print("The transferred Spearnman Coefficient and p-value for %s: %f and %f"%(hold_out_key, s_coefficient, pvalue))
+    for i in range(hardwareRange):
+        testy_hardware = testy[i*networkRange:(i+1)*networkRange]
+        testPredict_hardware = testPredict[i*networkRange:(i+1)*networkRange]
+        #print(testy_hardware.shape, testPredict_hardware.shape)
 
-    plt.figure()
-    plt.xlabel("Transfer : Actual Latency")
-    plt.ylabel("Transfer : Predicted Latency")
-    plt.scatter(testy, testPredict[:,0])
-    plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-    plt.savefig(hold_out_key+'transfer'+'.png')
-    '''
+        c = list(combinations(testy_hardware,2))
+        d = list(combinations(testPredict_hardware, 2))
+        #c = list(product(testy_hardware, testy_hardware))
+        #d = list(product(testPredict_hardware, testPredict_hardware))
+        #print(len(c), len(d))
+
+        #print("================================ Hardware %d =========================="%(i))
+
+        typeThres = 0.5
+
+        distance_testy = np.ones(len(c))
+        distance_testPredict = np.ones(len(d))
+
+        for j in range(distance_testy.shape[0]):
+            distance_testy[j] = distance.euclidean(c[j][0], c[j][1])
+            distance_testPredict[j] = distance.euclidean(d[j][0], d[j][1])
+
+        #print(distance_testy.shape, distance_testPredict.shape)
+
+        type1Err = 0
+        type2Err = 0
+
+        for j in range(distance_testy.shape[0]):
+            dev1 = (distance_testy[j] - distance_testPredict[j]) / distance_testy[j]
+            dev2 = (distance_testPredict[j] - distance_testy[j]) / distance_testPredict[j]
+            if (distance_testy[j] > distance_testPredict[j]) and (dev1 > typeThres):
+                type1Err += 1
+            elif (distance_testPredict[j] > distance_testy[j]) and (dev2 > typeThres):
+                type2Err +=1
+        #print("For Hardware %d - Type1Err Percentage: %f, Type2Err Percentage: %f, Threshold: %f"%(i,(type1Err/distance_testy.shape[0])*100,(type2Err/distance_testy.shape[0])*100, typeThres))
+        print((type1Err/distance_testy.shape[0])*100, (type2Err/distance_testy.shape[0])*100)
 
 
 def writeToFile(stringVal):
@@ -943,6 +1013,8 @@ def main():
         learn_individual_models(list_val_dict)
     elif args.learning_type == 'combined':
         learn_combined_models(list_val_dict)
+    elif args.learning_type == 'collaborative':
+        learn_collaborative_models(list_val_dict)
     else:
         print("Invalid --learning_type - Fix")
         exit(0)
