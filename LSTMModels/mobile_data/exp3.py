@@ -768,6 +768,9 @@ def learn_collaborative_models(list_val_dict):
 
     appended_features = final_features
     appended_latencies = final_lat
+    
+    hw_rem_features = []
+    hw_rem_latency = []
     ### Add one hardware to the base set
     i = 0
     for key in list_val_dict_rem:
@@ -775,23 +778,27 @@ def learn_collaborative_models(list_val_dict):
         i += 1
         tempDict = {}
         tempDict[key] = list_val_dict_rem[key]
-
+        
         tempDict, hw_features_cncat = cncatHardwareRep(tempDict, final_indices)
         lat, features = append_with_net_features(tempDict, hw_features_cncat)
+
+        hw_rem_features.append(features)
+        hw_rem_latency.append(lat)
 
         numPoints = int(0.1*lat.shape[0])
         indicesList = random.sample(range(lat.shape[0]),numPoints)
         indicesList.sort()
         indices = np.array(indicesList)
 
-        ## Check transfer on new hardware after giving numSamples
+        ## Check transfer on all new hardware
+        l = []
         if args.model == "lstm":
             checkTransfer(lat, features, model, final_indices, modellist, extractor, hardware="Without Finetune, Hardware %d %s" %(i, key))
         elif args.model == "xgb":
-            l1 = checkTransfer(lat, features, model, final_indices, hardware="Without Finetune, Hardware %d %s" %(i, key))
+            for j in range(0, i):
+                l1 = checkTransfer(hw_rem_latency[j], hw_rem_features[j], model, final_indices, hardware="Without Finetune, Hardware %d " %(i))
+                l += l1
 
-        ## Do Fine tune by giving 10% of 
-        if args.model == "xgb":
             lat_sample,features_sample = lat[indices], features[indices]       
             appended_features = np.concatenate((appended_features, features_sample), axis=0)
             appended_latencies = np.concatenate((appended_latencies, lat_sample), axis=0)
@@ -800,10 +807,9 @@ def learn_collaborative_models(list_val_dict):
             testy  = appended_latencies
             model = XGBRegressor()
             model.fit(testf, testy)
-            l2 = checkTransfer(lat, features, model, final_indices, hardware="After Finetune, Hardware %d %s" %(i, key))
-            dumpTabledata("%d hw added" %(i), l1+l2)
+            dumpTabledata("%d"%(i), l)
 
-        if i == 50:
+        if i == 10:
             break
             
 def cncatHardwareRep(net_dict, final_indices):
@@ -919,7 +925,7 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
         plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
         a,b = calcErrors(testy, testPredict)
-        return [r2_score, a, b]
+        return r2_score, a, b
 
 
 def learn_combined_models(list_val_dict):
@@ -1014,14 +1020,28 @@ def calcErrors(testy, testPredict):
     return mean(type1ErrP), mean(type2ErrP)
 
 def dumpTabledata(name, l):
-    file = open(args.name+'/meta/Tabledata.csv', "a")
-    text = name + ','
-    for i in l:
-        text += str(i) + ','
-    file.write(text)
+    text1 = name + ','
+    text2 = name + ','
+    text3 = name + ','
+    for i in range(len(l)):
+        if i%3 == 0:
+            text1 += str(l[i]) + ','
+        elif i%3 == 1:
+            text2 += str(l[i]) + ','
+        else:
+            text3 += str(l[i]) + ','
+    file = open(args.name+'/meta/TabledataR2.csv', "a")
+    file.write(text1)
     file.write('\n')
     file.close()
-
+    file = open(args.name+'/meta/TabledataType1.csv', "a")
+    file.write(text2)
+    file.write('\n')
+    file.close()
+    file = open(args.name+'/meta/TabledataType2.csv', "a")
+    file.write(text3)
+    file.write('\n')
+    file.close()
 
 def writeToFile(stringVal):
     meta = open(args.name+'/meta/metadata.txt', "a")
