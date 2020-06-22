@@ -948,9 +948,9 @@ def learn_combined_models(list_val_dict):
         final_lat, final_features = append_with_net_features(tempDict, hw_features_cncat)
 
         if args.model == "lstm":
-            checkTransfer(final_lat, final_features, model, final_indices, modellist, extractor)
+            checkTransfer(final_lat, final_features, model, final_indices, modellist, extractor, hardware=key)
         elif args.model == "xgb":
-            l = checkTransfer(final_lat, final_features, model, final_indices)
+            l = checkTransfer(final_lat, final_features, model, final_indices, hardware=key)
         dumpTabledata(i, key, l)
         i += 1
 
