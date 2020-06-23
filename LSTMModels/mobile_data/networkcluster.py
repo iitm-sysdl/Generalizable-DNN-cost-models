@@ -90,16 +90,16 @@ def parse_features():
   for i in range(len(Features)):
     temp = Features[i]
     for j in range(len(temp)):
-	    for k in range(len(temp[j])):
-		    numpyFeatures[i][j][k] = temp[j][k]
-		    if k == 5 or k == 6:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
-		    elif k == 7 or k == 8:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
-		    elif k == 9:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
-		    elif k == 12:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxFlops
+      for k in range(len(temp[j])):
+        numpyFeatures[i][j][k] = temp[j][k]
+        if k == 5 or k == 6:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
+        elif k == 7 or k == 8:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
+        elif k == 9:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
+        elif k == 12:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxFlops
 
   return numpyFeatures, maxLayer
 
