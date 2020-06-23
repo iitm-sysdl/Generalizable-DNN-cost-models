@@ -81,22 +81,67 @@ def parse_features():
             maxChannel = max(maxChannel, int(temp[j][8]))
       Features.append(temp)
 
-  numpyFeatures = np.ones((len(Features), maxLayer, 13))
+  numpyFeatures = np.ones((len(Features), maxLayer, 14))
   numpyFeatures = numpyFeatures*-1
 
   for i in range(len(Features)):
     temp = Features[i]
     for j in range(len(temp)):
-	    for k in range(len(temp[j])):
-		    numpyFeatures[i][j][k] = temp[j][k]
-		    if k == 5 or k == 6:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
-		    elif k == 7 or k == 8:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
-		    elif k == 9:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
-		    elif k == 12:
-			    numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxFlops
+      for k in range(len(temp[j])):
+        numpyFeatures[i][j][k] = temp[j][k]
+        if k == 5 or k == 6:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
+        elif k == 7 or k == 8:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
+        elif k == 9:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
+        elif k == 12:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxFlops
+        elif k == 13:
+          numpyFeatures[i][j][k] = 8
+
+  return numpyFeatures, maxLayer
+
+def parse_features_gpu():
+  Features = []
+  maxLayer = 0
+  maxFlops = 0
+  maxChannel = 0
+  maxDim = 224
+  maxKernel = 7
+  maxPadding = 3
+
+  with open('Embeddings_full.csv', newline='') as f:
+      reader = csv.reader(f)
+      data = list(reader)
+
+  for i in range(len(data)):
+      temp = [data[i][j * 13:(j + 1) * 13] for j in range((len(data[i]) + 12) // 13 )]
+      maxLayer = max(maxLayer, len(temp))
+      for j in range(len(temp)):
+            maxFlops=max(maxFlops, float(temp[j][12]))
+            maxChannel = max(maxChannel, int(temp[j][7]))
+            maxChannel = max(maxChannel, int(temp[j][8]))
+      Features.append(temp)
+
+  numpyFeatures = np.ones((len(Features), maxLayer, 14))
+  numpyFeatures = numpyFeatures*-1
+
+  for i in range(len(Features)):
+    temp = Features[i]
+    for j in range(len(temp)):
+      for k in range(len(temp[j])):
+        numpyFeatures[i][j][k] = temp[j][k]
+        if k == 5 or k == 6:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
+        elif k == 7 or k == 8:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
+        elif k == 9:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
+        elif k == 12:
+          numpyFeatures[i][j][k] = (numpyFeatures[i][j][k]*4)/maxFlops
+        elif k == 13:
+          numpyFeatures[i][j][k] = 32
 
   return numpyFeatures, maxLayer
 
@@ -1054,6 +1099,7 @@ def main():
         tmp_list.append(latency)
         tmp_list.append(features)
         list_val_dict[file] = tmp_list
+    gpufeatures, maxLayers = parse_features_gpu()
     gpufiles = glob.glob('mobileGPUdata/*.txt')
     gpukeys = []
     for file in gpufiles:
@@ -1063,7 +1109,7 @@ def main():
         tmp_list = []
         tmp_list.append(maxLayers)
         tmp_list.append(latency)
-        tmp_list.append(features)
+        tmp_list.append(gpufeatures)
         list_val_dict_gpu[key] = tmp_list
 
     if args.model != 'lstm' and args.model != 'xgb':
