@@ -4,8 +4,9 @@ import onnx
 import torch.onnx
 import math
 import timm
+
 from mobilenetv1 import *
-file = open("onnxEmbeddings.csv", 'w')
+file = open("Embeddings101_118.csv", 'w')
 def convolution(inDim, inC, outC, kernel, stride, padding, groups, netEmbedding):
     outDim = math.floor((inDim-kernel+2*padding)/stride) + 1
     if groups == 1:
@@ -19,7 +20,7 @@ def relu(inDim, channels, netEmbedding):
 
 def globalaveragepooling(inDim, channels, netEmbedding):
     outDim = 1
-    netEmbedding.append([0,0,0,0,1, inDim, outDim, channels, channels, 0, 0, 0, outDim*outDim*channels])
+    netEmbedding.append([0,0,0,0,1, inDim, outDim, channels, channels, inDim, inDim, 0, outDim*outDim*channels])
     return outDim
 
 def skip(inDim, channels, netEmbedding):
@@ -117,24 +118,31 @@ net = MobileNet(depth_mul=0.75)
 onnxparse(net, x)
 net = MobileNet(depth_mul=1.0)
 onnxparse(net, x)
-
-# target_platform = "proxyless_mobile"
-# net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
-# net = timm.create_model('fbnetc_100', pretrained=False)
-# net = timm.create_model('spnasnet_100', pretrained=False)
-# target_platform = "proxyless_mobile_14"
-# net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
-# net = torchvision.models.mnasnet0_5()
-# net = torchvision.models.mnasnet0_75()
-# net = torchvision.models.mnasnet1_0()
-# net = torchvision.models.mnasnet1_3()
-# net = torchvision.models.squeezenet1_0()
-# net = torchvision.models.squeezenet1_1()
-# net = torchvision.models.mobilenet_v2(width_mult=0.75)
-# net = torchvision.models.mobilenet_v2(width_mult=0.5)
-# net = torchvision.models.mobilenet_v2(width_mult=0.25)
-# net = timm.create_model('efficientnet_b0', pretrained=False)
-# onnxparse(net, x)
-# net = timm.create_model('efficientnet_b1', pretrained=False)
-# net = timm.create_model('efficientnet_b2', pretrained=False)
-# net = timm.create_model('efficientnet_b3', pretrained=False)
+target_platform = "proxyless_mobile"
+net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
+onnxparse(net, x)
+net = timm.create_model('fbnetc_100', pretrained=False)
+onnxparse(net, x)
+net = timm.create_model('spnasnet_100', pretrained=False)
+onnxparse(net, x)
+target_platform = "proxyless_mobile_14"
+net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
+onnxparse(net, x)
+net = torchvision.models.mnasnet0_5()
+onnxparse(net, x)
+net = torchvision.models.mnasnet0_75()
+onnxparse(net, x)
+net = torchvision.models.mnasnet1_0()
+onnxparse(net, x)
+net = torchvision.models.mnasnet1_3()
+onnxparse(net, x)
+net = torchvision.models.squeezenet1_0()
+onnxparse(net, x)
+net = torchvision.models.squeezenet1_1()
+onnxparse(net, x)
+net = torchvision.models.mobilenet_v2(width_mult=0.75)
+onnxparse(net, x)
+net = torchvision.models.mobilenet_v2(width_mult=0.5)
+onnxparse(net, x)
+net = torchvision.models.mobilenet_v2(width_mult=0.25)
+onnxparse(net, x)
