@@ -118,6 +118,8 @@ net = MobileNet(depth_mul=0.75)
 onnxparse(net, x)
 net = MobileNet(depth_mul=1.0)
 onnxparse(net, x)
+net = torchvision.models.mobilenet_v2(width_mult=1.0)
+onnxparse(net, x)
 target_platform = "proxyless_mobile"
 net = torch.hub.load('mit-han-lab/ProxylessNAS', target_platform, pretrained=False)
 onnxparse(net, x)
