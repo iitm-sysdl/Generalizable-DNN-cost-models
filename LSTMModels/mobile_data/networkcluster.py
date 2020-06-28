@@ -47,6 +47,7 @@ from sklearn.neighbors import RadiusNeighborsRegressor
 from xgboost import XGBRFRegressor
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 numLatency = 118
+embeddingsFile = "onnxEmbeddings.csv"
 lat = []
 matplotlib.use('Agg')
 small = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 100, 101, 109, 116, 117]
@@ -71,7 +72,7 @@ def parse_features():
   maxKernel = 7
   maxPadding = 3
 
-  with open('Embeddings_full.csv', newline='') as f:
+  with open(embeddingsFile, newline='') as f:
       reader = csv.reader(f)
       data = list(reader)
 
