@@ -906,9 +906,16 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
             plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
 
     elif args.model == 'xgb':
+        print(testf.shape)
+        numHardware = testy.shape[0]//numLatency
+        frequency = []
+        for i in range(numHardware):
+            f = testf[i*numLatency][0][35]*3.0
+            freqlist =[f]*numLatency
+            frequency.append(freqlist)
+        frequency = np.array(frequency)
         testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
-
-        print(testf.shape, testy.shape)
+        print(testf.shape, testy.shape, numHardware, frequency)
         testPredict = model.predict(testf)
         testScore = math.sqrt(mean_squared_error(testy, testPredict))
         writeToFile('Transfer Test Score: %f RMSE' % (testScore))
@@ -917,14 +924,44 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
+
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Transfer : Actual Latency")
+        plt.ylabel("Transfer : Predicted Latency")
+        a = sns.scatterplot(x = testy, y = testPredict, hue=frequency, s = 15, linewidth=0)
+        a.get_legend().remove()
+        plt.savefig(args.name+'/plots/'+hardware+'_ColortransferFC.png')
+
+        # colors = {}
+        # frequency = np.array(frequency)
+        # bins = np.array([0, 1.3, 1.7, 2.0, 2.3, 2.6, 3.0])
+        # inds = np.digitize(frequency, bins)
+        # color = sns.cubehelix_palette(6)
+        # color = color.as_hex()        
+        # count = np.zeros(6)
+        # for i in range(numHardware):
+            # freqbin = inds[i]-1
+            # if count[freqbin] == 0:
+                # sns.scatterplot(testy[i*numLatency:(i+1)*numLatency], testPredict[i*numLatency:(i+1)*numLatency], s=15, color = color[freqbin])
+                # count[freqbin] += 1
+
+
+        # for i in range(numHardware//10):
+        #     plt.figure()
+        #     plt.xlabel("Transfer : Actual Latency")
+        #     plt.ylabel("Transfer : Predicted Latency")
+        #     for j in range(10):
+        #         sns.scatterplot(testy[(i*10+j)*numLatency:(i*10+j+1)*numLatency], testPredict[(i*10+j)*numLatency:(i*10+j+1)*numLatency], color=colors[j])
+        #     plt.savefig(args.name+'/plots/'+hardware+'_Color' + str(i) +'transferFC.png')
+
         plt.figure()
         plt.xlabel("Transfer : Actual Latency")
         plt.ylabel("Transfer : Predicted Latency")
         sns.scatterplot(testy, testPredict)
-        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
         plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
-
         calcErrors(testy, testPredict)
+
 
 
 def learn_combined_models(list_val_dict):
