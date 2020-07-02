@@ -462,6 +462,7 @@ def mutual_information(net_dict, numSamples):
     return sel_list, hw_features_cncat
 
 def corr_choose(rho, maxSamples, threshold = 0.97, stop_condition = 5, debug=True):
+    elements = [numLatency]
     subset = []
     indices = range(rho.shape[0])
     if debug:
@@ -477,12 +478,21 @@ def corr_choose(rho, maxSamples, threshold = 0.97, stop_condition = 5, debug=Tru
         rho = np.delete(rho, remove_set, axis=0)
         rho = np.delete(rho, remove_set, axis=1)
         indices = np.delete(indices, remove_set)
+        elements.append(rho.shape[0])
         if debug:
             print('Iteration', i, ": Number of remaining vectors", rho.shape[0])
         if len(indices) <= stop_condition:
             break
     if debug:
         print('Chosen networks are ', subset)
+    
+    matplotlib.rcParams['figure.dpi'] = 500
+    plt.figure()
+    plt.xlabel('Iterations')
+    plt.ylabel('Number of Networks remaining')
+    # plt.title('Mutual Information Score over iterations')
+    plt.plot(np.arange(len(elements)), elements,'-o')
+    plt.savefig(args.name+'/plots/spearman.png')
     return subset
 
 def corr_eval(rho, subset, threshold = 0.97):
@@ -522,7 +532,6 @@ def spearmanCorr(net_dict, numSamples):
 
     sel_list = corr_choose(rho, numSamples, 0.98)
     print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
-
     #exit(0)
 
     hw_features_cncat = []
@@ -668,15 +677,15 @@ def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
 
 
     print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
+    matplotlib.rcParams['figure.dpi'] = 500
     plt.figure()
     plt.xlabel('Iterations')
     plt.ylabel('Mutual Information Score')
-    plt.title('Mutual Information Score over iterations')
+    # plt.title('Mutual Information Score over iterations')
     plt.plot(np.arange(len(max_info_lst)), max_info_lst,'-o')
     plt.savefig(args.name+'/plots/mutual_info_score.png')
     print(max_info_lst)
     print(sel_list)
-
 
     if choose_minimal == True:
         out_index = len(max_info_lst)

@@ -1,3 +1,5 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import keras
 import tensorflow as tf
 from keras.models import Sequential
@@ -29,7 +31,6 @@ import mlflow
 import mlflow.keras
 from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot as plt
-import os
 import glob
 import multiprocessing as mp
 from keras.callbacks import EarlyStopping
@@ -45,10 +46,10 @@ from sklearn.kernel_ridge import KernelRidge
 from xgboost import XGBRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
 from xgboost import XGBRFRegressor
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 numLatency = 118
 embeddingsFile = "onnxEmbeddings.csv"
 lat = []
+maxVal = 0
 matplotlib.use('Agg')
 def parse_latency(file):
     global lat
@@ -56,7 +57,7 @@ def parse_latency(file):
     latency = np.mean(data, axis=1)
     latency = latency[:numLatency]
     lat.append(latency)
-    latency = latency/np.amax(latency)
+    # latency = latency/np.amax(latency)
     return latency
 
 def parse_features():
@@ -746,6 +747,17 @@ predict for the held-out hardware without any fine-tuning
 def learn_combined_models(list_val_dict):
     if args.sampling_type == 'random':
         final_indices = random_indices(args.numSamples)
+
+    global maxVal
+    ## Identifying the max latency
+    for key in list_val_dict:
+        maxValTemp = np.amax(list_val_dict[key][1])
+        if maxValTemp > maxVal:
+            maxVal = maxValTemp
+
+    ##Normalizing the latency by the maxlatency
+    for key in list_val_dict:
+        list_val_dict[key][1] = list_val_dict[key][1] / maxVal
     #for key in list_val_dict:
     #list_val_dict_local = list_val_dict.copy() #This was creating a shallow copy
     #list_val_dict_local = copy.deepcopy(list_val_dict)
@@ -878,15 +890,35 @@ def learn_combined_models(list_val_dict):
         writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
+        testyPlot = testy * maxVal
+        testPredictPlot = testPredict * maxVal
+        testPlotScore = math.sqrt(mean_squared_error(testyPlot, testPredictPlot))
+        writeToFile('Normalized Transfer Test Score: %f RMSE' % (testPlotScore))
+
+        np.savetxt(args.name+'/meta/'+'testy.txt', testyPlot, delimiter='\n')
+        np.savetxt(args.name+'/meta/'+'testPredict.txt', testPredictPlot, delimiter='\n')
+
         plt.figure()
-        plt.xlabel("Transfer : Actual Latency")
-        plt.ylabel("Transfer : Predicted Latency")
-        sns.scatterplot(testy, testPredict)
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testy, testPredict, s=15)
         #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-        plt.savefig(args.name+'/plots/Mixed_Model_transferFC.png')
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC_scaled_down.png')
 
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testyPlot, testPredictPlot, s=15)
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC_Scaled_up.png')
 
-
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.regplot(x=testyPlot, y=testPredictPlot, scatter_kws={'s':10, 'color':'blue'})
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFCregPlot.png')
 
     '''
     held_out_hw_feature = []
