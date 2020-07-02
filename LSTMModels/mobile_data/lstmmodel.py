@@ -50,6 +50,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 numLatency = 118
 embeddingsFile = "onnxEmbeddings.csv"
 lat = []
+maxVal = 0
 matplotlib.use('Agg')
 def parse_latency(file):
     global lat
@@ -57,7 +58,7 @@ def parse_latency(file):
     latency = np.mean(data, axis=1)
     latency = latency[:numLatency]
     lat.append(latency)
-    latency = latency/np.amax(latency)
+    #latency = latency/np.amax(latency)
     return latency
 
 def parse_features():
@@ -131,8 +132,8 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape, split
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(trainy, trainPredict)
   plt.savefig(args.name+'/plots/'+hardware+'_'+args.learning_type+'_'+str(splitPercentage)+'_train.png')
 
@@ -143,8 +144,8 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape, split
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(testy, testPredict)
   plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_'+str(1-splitPercentage)+'_test.png')
   return model
@@ -201,8 +202,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(trainy, trainPredict[:,0])
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_train.png')
@@ -215,8 +216,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(testy, testPredict[:,0])
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_test.png')
@@ -244,8 +245,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
     writeToFile("The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
     writeToFile("The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
     plt.figure()
-    plt.xlabel("Actual Latency")
-    plt.ylabel("Predicted Latency")
+    plt.xlabel("Actual Latency (in ms)")
+    plt.ylabel("Predicted Latency (in ms)")
     sns.scatterplot(testy, modeltestPred)
     #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
     plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'.png')
@@ -816,6 +817,7 @@ def cncatHardwareRep(net_dict, final_indices):
 
 
 def subsetAndLearn(net_dict, final_indices, numSamples):
+
     if args.sampling_type == 'random':
         hw_features_cncat = random_sampling(net_dict, final_indices, numSamples)
     elif args.sampling_type == 'statistical':
@@ -850,6 +852,8 @@ def subsetAndLearn(net_dict, final_indices, numSamples):
 
 def checkTransfer(lat, features, model, final_indices, modellist = None, extractor = None, hardware="Mixed Model"):
 
+    global maxVal
+
     testf = features
     testy = lat
 
@@ -865,8 +869,8 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
         plt.figure()
-        plt.xlabel("Transfer : Actual Latency")
-        plt.ylabel("Transfer : Predicted Latency")
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
         sns.scatterplot(testy, testPredict[:,0])
         #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
         plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
@@ -882,8 +886,8 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
             writeToFile("Transfer The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
             writeToFile("Transfer The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
             plt.figure()
-            plt.xlabel("Actual Latency")
-            plt.ylabel("Predicted Latency")
+            plt.xlabel("Actual Latency (in ms)")
+            plt.ylabel("Predicted Latency (in ms)")
             sns.scatterplot(testy, modeltestPred)
             #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
             plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
@@ -900,12 +904,35 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
+        testyPlot = testy * maxVal
+        testPredictPlot = testPredict * maxVal
+        testPlotScore = math.sqrt(mean_squared_error(testyPlot, testPredictPlot))
+        writeToFile('Normalized Transfer Test Score: %f RMSE' % (testPlotScore))
+
+        np.savetxt(args.name+'/meta/'+'testy.txt', testyPlot, delimiter='\n')
+        np.savetxt(args.name+'/meta/'+'testPredict.txt', testPredictPlot, delimiter='\n')
+
         plt.figure()
-        plt.xlabel("Transfer : Actual Latency")
-        plt.ylabel("Transfer : Predicted Latency")
-        sns.scatterplot(testy, testPredict)
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testy, testPredict, s=15)
         #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
-        plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC_scaled_down.png')
+
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testyPlot, testPredictPlot, s=15)
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC_Scaled_up.png')
+
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.regplot(x=testyPlot, y=testPredictPlot, scatter_kws={'s':10, 'color':'blue'})
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFCregPlot.png')
 
         calcErrors(testy, testPredict)
 
@@ -914,6 +941,17 @@ def learn_combined_models(list_val_dict):
     final_indices = 0
     if args.sampling_type == 'random':
         final_indices = random_indices(args.numSamples)
+
+    global maxVal
+    ## Identifying the max latency
+    for key in list_val_dict:
+        maxValTemp = np.amax(list_val_dict[key][1])
+        if maxValTemp > maxVal:
+            maxVal = maxValTemp
+
+    ##Normalizing the latency by the maxlatency
+    for key in list_val_dict:
+        list_val_dict[key][1] = list_val_dict[key][1] / maxVal
 
     ## Splitting the dictionary into 70% and 30%
     list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
