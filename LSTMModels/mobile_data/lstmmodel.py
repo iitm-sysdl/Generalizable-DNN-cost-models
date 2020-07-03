@@ -150,6 +150,39 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape, split
   plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_'+str(1-splitPercentage)+'_test.png')
   return model
 
+def learn_xgb_model_collab(hardware, maxLayer, lat_mean, features, featuresShape, splitPercentage=0.99, shuffleFeatures=True):
+  numSample = len(lat_mean)
+  features = features[:numSample]
+  if shuffleFeatures == True:
+    features, lat_mean = shuffle(features,lat_mean)
+  testf = features
+  testy = lat_mean
+  testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
+  results = []
+  index = []
+  for i in range(10, numSample):
+    trainf = features[:i]
+    trainy = lat_mean[:i]
+#   print("================= Dataset Stage ==============")
+#   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
+    trainf = np.reshape(trainf, (trainf.shape[0], trainf.shape[1]*trainf.shape[2]))
+    model = XGBRegressor()
+    model.fit(trainf, trainy)
+    testPredict = model.predict(testf)
+    testScore = math.sqrt(mean_squared_error(testy, testPredict))
+
+    r2_score = sklearn.metrics.r2_score(testy, testPredict)
+    s_coefficient, pvalue = spearmanr(testy, testPredict)
+    results.append(r2_score)
+    index.append(i)
+
+  matplotlib.rcParams['figure.dpi'] = 500
+  plt.figure()
+  plt.xlabel("Number of datapoints")
+  plt.ylabel("R^2")
+  sns.lineplot(index, results)
+  plt.savefig(args.name+'/plots/'+hardware+'_indiLearn.png')
+
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   numSample = len(lat_mean)
   features = features[:numSample]
@@ -751,7 +784,7 @@ def learn_individual_models(list_val_dict, splitPercentage=0.99, shuffleFeatures
         if args.model == "lstm":
             learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2])
         elif args.model == "xgb":
-            learn_xgb_model(key, net_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
+            learn_xgb_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
 
 
 '''
