@@ -3,7 +3,7 @@ for i in random mutual_info_v2 spearmanCorr
 do 
     for j in small large giant
     do
-        for k in 3 5 7
+        for k in 10
         do
             cluster="cluster"
             samples="samples"
