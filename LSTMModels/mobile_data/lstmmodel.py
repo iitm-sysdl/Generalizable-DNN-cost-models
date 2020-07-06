@@ -1053,7 +1053,7 @@ def calcErrors(testy, testPredict):
 
         #print("================================ Hardware %d =========================="%(i))
 
-        typeThres = 0.15
+        typeThres = 0.1
 
         distance_testy = np.ones(len(c))
         distance_testPredict = np.ones(len(d))
@@ -1079,9 +1079,15 @@ def calcErrors(testy, testPredict):
         type2ErrP.append((type2Err/distance_testy.shape[0])*100)
 
     print(mean(type1ErrP), mean(type2ErrP))
+    writeToFile('Type-1 Error: ' +str(mean(type1ErrP)) + '  Type-2 Error: ' +str(mean(type2ErrP)))
+    writeToFileError(type1ErrP, type2ErrP)
 
-
-
+def writeToFileError(l1, l2):
+    meta = open(args.name+'/meta/error.txt', "w")
+    for i in range(len(l1)):
+        s = str(l1[i]) + ',' + str(l2[i]) + ',' + '\n'
+        meta.write(s)
+    meta.close()    
 
 def writeToFile(stringVal):
     meta = open(args.name+'/meta/metadata.txt', "a")
