@@ -934,6 +934,7 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
 
         np.savetxt(args.name+'/meta/'+'testy.txt', testyPlot, delimiter='\n')
         np.savetxt(args.name+'/meta/'+'testPredict.txt', testPredictPlot, delimiter='\n')
+        np.savetxt(args.name+'/meta/'+'Frequency.txt', frequency, delimiter='\n')
 
         matplotlib.rcParams['figure.dpi'] = 500
         plt.figure()
@@ -992,7 +993,8 @@ def learn_combined_models(list_val_dict):
         maxValTemp = np.amax(list_val_dict[key][1])
         if maxValTemp > maxVal:
             maxVal = maxValTemp
-
+    for key in list_val_dict:
+        list_val_dict[key][1] = list_val_dict[key][1] / maxVal
     ## Splitting the dictionary into 70% and 30%
     list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
     list_val_dict_30 = dict(list(list_val_dict.items())[int(0.7*(len(list_val_dict))):])
