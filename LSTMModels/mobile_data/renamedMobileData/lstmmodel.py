@@ -51,13 +51,14 @@ numLatency = 118
 embeddingsFile = "onnxEmbeddings.csv"
 lat = []
 matplotlib.use('Agg')
+maxVal = 0
 def parse_latency(file):
     global lat
     data = np.genfromtxt(file, delimiter=',')
     latency = np.mean(data, axis=1)
     latency = latency[:numLatency]
     lat.append(latency)
-    latency = latency/np.amax(latency)
+    # latency = latency/np.amax(latency)
     return latency
 
 def parse_features():
@@ -869,6 +870,7 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
 
     testf = features
     testy = lat
+    global maxVal
 
     if args.model == 'lstm':
         print(testf.shape, testy.shape)
@@ -912,7 +914,7 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         for i in range(numHardware):
             f = testf[i*numLatency][0][35]*3.0
             freqlist =[f]*numLatency
-            frequency.append(freqlist)
+            frequency = frequency + freqlist
         frequency = np.array(frequency)
         testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
         print(testf.shape, testy.shape, numHardware, frequency)
@@ -925,6 +927,14 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
 
 
+        testyPlot = testy * maxVal
+        testPredictPlot = testPredict * maxVal
+        testPlotScore = math.sqrt(mean_squared_error(testyPlot, testPredictPlot))
+        writeToFile('Normalized Transfer Test Score: %f RMSE' % (testPlotScore))
+
+        np.savetxt(args.name+'/meta/'+'testy.txt', testyPlot, delimiter='\n')
+        np.savetxt(args.name+'/meta/'+'testPredict.txt', testPredictPlot, delimiter='\n')
+
         matplotlib.rcParams['figure.dpi'] = 500
         plt.figure()
         plt.xlabel("Transfer : Actual Latency")
@@ -933,6 +943,13 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         a.get_legend().remove()
         plt.savefig(args.name+'/plots/'+hardware+'_ColortransferFC.png')
 
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Transfer : Actual Latency")
+        plt.ylabel("Transfer : Predicted Latency")
+        a = sns.scatterplot(x = testyPlot, y = testPredictPlot, hue=frequency, s = 15, linewidth=0)
+        a.get_legend().remove()
+        plt.savefig(args.name+'/plots/'+hardware+'_ColorScaledUptransferFC.png')
         # colors = {}
         # frequency = np.array(frequency)
         # bins = np.array([0, 1.3, 1.7, 2.0, 2.3, 2.6, 3.0])
@@ -968,6 +985,13 @@ def learn_combined_models(list_val_dict):
     final_indices = 0
     if args.sampling_type == 'random':
         final_indices = random_indices(args.numSamples)
+
+    global maxVal
+    ## Identifying the max latency
+    for key in list_val_dict:
+        maxValTemp = np.amax(list_val_dict[key][1])
+        if maxValTemp > maxVal:
+            maxVal = maxValTemp
 
     ## Splitting the dictionary into 70% and 30%
     list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
