@@ -792,22 +792,25 @@ def learn_collaborative_models(list_val_dict):
         indices = np.array(indicesList)
 
         ## Check transfer on all new hardware
-        l = []
         if args.model == "lstm":
             checkTransfer(lat, features, model, final_indices, modellist, extractor, hardware="Without Finetune, Hardware %d %s" %(i, key))
         elif args.model == "xgb":
-            for j in range(0, i):
-                l1 = checkTransfer(hw_rem_latency[j], hw_rem_features[j], model, final_indices, hardware="Without Finetune, Hardware %d " %(i))
-                l += l1
-
             lat_sample,features_sample = lat[indices], features[indices]       
-            appended_features = np.concatenate((appended_features, features_sample), axis=0)
-            appended_latencies = np.concatenate((appended_latencies, lat_sample), axis=0)
+            if i == 1:
+                appended_features = features_sample
+                appended_latencies = lat_sample
+            else: 
+                appended_features = np.concatenate((appended_features, features_sample), axis=0)
+                appended_latencies = np.concatenate((appended_latencies, lat_sample), axis=0)
             
             testf  = np.reshape(appended_features, (appended_features.shape[0], appended_features.shape[1]*appended_features.shape[2]))
             testy  = appended_latencies
             model = XGBRegressor()
             model.fit(testf, testy)
+            l = []
+            for j in range(0, i):
+                l1 = checkTransfer(hw_rem_latency[j], hw_rem_features[j], model, final_indices, hardware="Without Finetune, Hardware %d " %(i))
+                l += l1
             dumpTabledata("%d"%(i), l)
 
         if i == 50:
