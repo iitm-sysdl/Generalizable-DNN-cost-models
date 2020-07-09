@@ -760,8 +760,8 @@ def learn_collaborative_models(list_val_dict):
         final_indices = random_indices(args.numSamples)
 
     ### Take a base Set and learn model (10)
-    list_val_dict_base_set = dict(list(list_val_dict.items())[:int(0.1*(len(list_val_dict)))])
-    list_val_dict_rem  = dict(list(list_val_dict.items())[int(0.1*(len(list_val_dict))):])
+    list_val_dict_base_set = dict(list(list_val_dict.items())[:19])
+    list_val_dict_rem  = dict(list(list_val_dict.items())[19:])
     if args.model == "lstm":
         model, modellist, extractor, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_base_set, final_indices, args.numSamples)
     elif args.model == "xgb":
@@ -810,7 +810,7 @@ def learn_collaborative_models(list_val_dict):
             model.fit(testf, testy)
             dumpTabledata("%d"%(i), l)
 
-        if i == 10:
+        if i == 50:
             break
             
 def cncatHardwareRep(net_dict, final_indices):
