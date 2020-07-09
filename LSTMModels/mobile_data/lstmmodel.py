@@ -183,7 +183,11 @@ def learn_xgb_model_collab(hardware, maxLayer, lat_mean, features, featuresShape
   plt.ylabel("Average R^2")
   sns.lineplot(index, results)
   plt.savefig(args.name+'/plots/'+hardware+'_indiLearn.png')
-
+  f = open(args.name+'/meta/plotdata.txt', a)
+  s1 = ','.join(map(str, index))
+  s2 = ','.join(map(str, results))
+  f.write(hardware+'\n'+s1+'\n'+s2+'\n')
+  f.close()
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   numSample = len(lat_mean)
   features = features[:numSample]
@@ -798,7 +802,6 @@ def learn_individual_models(list_val_dict, splitPercentage=0.99, shuffleFeatures
         elif args.model == "xgb":
             # learn_xgb_model_collab(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
             learn_xgb_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
-
 
 
 '''
