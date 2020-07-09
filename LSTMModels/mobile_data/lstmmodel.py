@@ -796,7 +796,9 @@ def learn_individual_models(list_val_dict, splitPercentage=0.99, shuffleFeatures
         if args.model == "lstm":
             learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2])
         elif args.model == "xgb":
-            learn_xgb_model_collab(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
+            # learn_xgb_model_collab(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
+            learn_xgb_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
+
 
 
 '''
