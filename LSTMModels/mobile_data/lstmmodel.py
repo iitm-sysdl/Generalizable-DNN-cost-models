@@ -151,6 +151,7 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape, split
   return model
 
 def learn_xgb_model_collab(hardware, maxLayer, lat_mean, features, featuresShape, splitPercentage=0.99, shuffleFeatures=True):
+  print('Learning' + hardware)
   numSample = len(lat_mean)
   features = features[:numSample]
   if shuffleFeatures == True:
@@ -178,8 +179,8 @@ def learn_xgb_model_collab(hardware, maxLayer, lat_mean, features, featuresShape
 
   matplotlib.rcParams['figure.dpi'] = 500
   plt.figure()
-  plt.xlabel("Number of datapoints")
-  plt.ylabel("R^2")
+  plt.xlabel("Number of Datapoints")
+  plt.ylabel("Average R^2")
   sns.lineplot(index, results)
   plt.savefig(args.name+'/plots/'+hardware+'_indiLearn.png')
 
@@ -780,11 +781,22 @@ def mutual_info(arr, row_list, nrows, ncols):
     return self_info - mutual_info
 
 def learn_individual_models(list_val_dict, splitPercentage=0.99, shuffleFeatures=True):
+    global maxVal
+    ## Identifying the max latency
+    for key in list_val_dict:
+        maxValTemp = np.amax(list_val_dict[key][1])
+        if maxValTemp > maxVal:
+            maxVal = maxValTemp
+
+    ##Normalizing the latency by the maxlatency
+    for key in list_val_dict:
+        list_val_dict[key][1] = list_val_dict[key][1] / maxVal
+
     for key in list_val_dict:
         if args.model == "lstm":
             learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2])
         elif args.model == "xgb":
-            learn_xgb_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
+            learn_xgb_model_collab(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
 
 
 '''
