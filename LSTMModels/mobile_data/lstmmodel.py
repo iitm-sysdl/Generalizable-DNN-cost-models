@@ -993,6 +993,7 @@ def checkTransfer(lat, features, model, final_indices, modellist = None, extract
         sns.regplot(x=testyPlot, y=testPredictPlot, scatter_kws={'s':10, 'color':'blue'})
         plt.savefig(args.name+'/plots/'+hardware+'_transferFCregPlot.png')
 
+        RMSEError(testy, testPredict)
         calcErrors(testy, testPredict)
 
 
@@ -1044,6 +1045,10 @@ from itertools import combinations
 from scipy.spatial import distance
 
 def calcErrors(testy, testPredict):
+    global maxVal
+    testy = testy * maxVal
+    testPredict = testPredict * maxVal
+
     print(testy.shape, testPredict.shape)
 
     #print(testy, testPredict)
@@ -1098,6 +1103,39 @@ def calcErrors(testy, testPredict):
     print(mean(type1ErrP), mean(type2ErrP))
     writeToFile('Type-1 Error: ' +str(mean(type1ErrP)) + '  Type-2 Error: ' +str(mean(type2ErrP)))
     writeToFileError(type1ErrP, type2ErrP)
+
+def mean_absolute_percentage_error(y_true, y_pred): 
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+def RMSEError(testy, testPredict):
+    global maxVal
+    testy = testy * maxVal
+    testPredict = testPredict * maxVal
+
+
+    ## testy has each hardware's latency stacked up - one after the other - first 118, second 118 and so on
+    networkRange = numLatency - args.numSamples
+    hardwareRange = int(math.ceil(testy.shape[0] / networkRange))
+    print(hardwareRange)
+
+    l = []
+    for i in range(hardwareRange):
+        testy_hardware = testy[i*networkRange:(i+1)*networkRange]
+        testPredict_hardware = testPredict[i*networkRange:(i+1)*networkRange]
+        r2_score = sklearn.metrics.r2_score(testy_hardware, testPredict_hardware)
+        rmse = math.sqrt(mean_squared_error(testy_hardware, testPredict_hardware))
+        mape = mean_absolute_percentage_error(testy_hardware, testPredict_hardware)
+        avg = np.mean(testy_hardware)
+        med = np.median(testy_hardware)
+        l.append([r2_score, rmse, np.amin(testy_hardware), np.amax(testy_hardware), avg, med, mape])
+    dumpRMSE(l)
+
+def dumpRMSE(l):
+    meta = open(args.name+'/meta/RMSE.txt', "w")
+    for i in l:
+        s = ','.join(map(str, i))
+        meta.write(s+'\n')
+    meta.close()
 
 def writeToFileError(l1, l2):
     meta = open(args.name+'/meta/error.txt', "w")
