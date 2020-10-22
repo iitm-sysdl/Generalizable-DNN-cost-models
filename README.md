@@ -1,11 +1,11 @@
 # A Case for Generalizable DNN Cost Models for Mobile Devices [[Paper]()][[Slides]()][[Videos]()]
 ```BibTex
 ```
-## Desigining one cost model for many devices
+## Desigining generalizable cost model for many devices
 
 ## Use case: Collaborative Workload Characterization
 
-## Data Visualization
+## Collected data visualization
 
 ## How to use our generalizable cost model?
 
