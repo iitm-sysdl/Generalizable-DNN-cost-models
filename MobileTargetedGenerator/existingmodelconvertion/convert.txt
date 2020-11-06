@@ -1,1 +1,0 @@
-cat mv1Embeddings.csv mv2Embedding_depthMul_1.0.csv proxylessEmbeddings.csv fbnet.csv spnasnet.csv proxyless14.csv mnasnet0.5.csv mnasnet0.75.csv mnasnet1.0.csv mnasnet1.3.csv squeezeEmbeddings.csv mv2Embedding_depthMul_0.75.csv mv2Embedding_depthMul_0.5.csv mv2Embedding_depthMul_0.25.csv EfficientNetB0.csv EfficientNetB1.csv EfficientNetB2.csv EfficientNetB3.csv > Embeddings.csv

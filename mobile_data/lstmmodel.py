@@ -1165,7 +1165,7 @@ def dumpSelectedNetworks(s):
 def main():
     list_val_dict = {}
     features, maxLayers = parse_features()
-    files = glob.glob('*.txt')
+    files = glob.glob('mobileData/*.txt')
     for file in files:
         latency = parse_latency(file)
         tmp_list = []
