@@ -1,4 +1,4 @@
-# A Case for Generalizable DNN Cost Models for Mobile Devices [[Paper]()][[Slides]()][[Videos]()]
+# A Case for Generalizable DNN Cost Models for Mobile Devices [[Paper](https://vinodganesan.github.io/files/Generalizable_DNN_Cost_Models_IISWC_2020.pdf)][[Slides](https://slides.com/pratyushkumarpanda/deck/fullscreen?token=QQC26kZT)][[Videos](https://youtu.be/Mh1c-tNWRo)]
 ```BibTex
 ```
 ## Desigining generalizable cost model for many devices
