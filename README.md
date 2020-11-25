@@ -1,5 +1,13 @@
 # A Case for Generalizable DNN Cost Models for Mobile Devices [[Paper](https://vinodganesan.github.io/files/Generalizable_DNN_Cost_Models_IISWC_2020.pdf)][[Slides](https://slides.com/pratyushkumarpanda/deck/fullscreen?token=QQC26kZT)][[Videos](https://youtu.be/Mh1c-tNWRo)]
 ```BibTex
+@inproceedings{ganesan2020case,
+  title={A Case for Generalizable DNN Cost Models for Mobile Devices},
+  author={Ganesan, Vinod and Selvam, Surya and Sen, Sanchari and Kumar, Pratyush and Raghunathan, Anand},
+  booktitle={2020 IEEE International Symposium on Workload Characterization (IISWC)},
+  pages={169--180},
+  year={2020},
+  organization={IEEE}
+}
 ```
 ## Desigining generalizable cost model for many devices
 
