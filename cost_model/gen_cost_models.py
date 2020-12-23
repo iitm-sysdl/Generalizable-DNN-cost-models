@@ -14,6 +14,7 @@ from keras.layers import Concatenate
 from keras import optimizers
 from scipy.stats import spearmanr
 from scipy import stats
+from statistics import mean
 import copy
 import mlflow
 import seaborn as sns
@@ -49,6 +50,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 numLatency = 118
 embeddingsFile = "onnxEmbeddings.csv"
 lat = []
+maxVal = 0
 matplotlib.use('Agg')
 def parse_latency(file):
     global lat
@@ -56,7 +58,7 @@ def parse_latency(file):
     latency = np.mean(data, axis=1)
     latency = latency[:numLatency]
     lat.append(latency)
-    latency = latency/np.amax(latency)
+    #latency = latency/np.amax(latency)
     return latency
 
 def parse_features():
@@ -87,27 +89,28 @@ def parse_features():
   for i in range(len(Features)):
     temp = Features[i]
     for j in range(len(temp)):
-            for k in range(len(temp[j])):
-                    numpyFeatures[i][j][k] = temp[j][k]
-                    if k == 5 or k == 6:
-                            numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
-                    elif k == 7 or k == 8:
-                            numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
-                    elif k == 9:
-                            numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
-                    elif k == 12:
-                            numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxFlops
+      for k in range(len(temp[j])):
+        numpyFeatures[i][j][k] = temp[j][k]
+        if k == 5 or k == 6:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxDim
+        elif k == 7 or k == 8:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxChannel
+        elif k == 9:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxKernel
+        elif k == 12:
+          numpyFeatures[i][j][k] = numpyFeatures[i][j][k]/maxFlops
 
   return numpyFeatures, maxLayer
 
-def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
+def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape, splitPercentage=0.99, shuffleFeatures=True):
   numSample = len(lat_mean)
   features = features[:numSample]
-  features, lat_mean = shuffle(features,lat_mean)
-  trainf = features[:int(0.99*len(features))]
-  trainy = lat_mean[:int(0.99*len(features))]
-  testf = features[int(0.99*len(features)):]
-  testy = lat_mean[int(0.99*len(features)):]
+  if shuffleFeatures == True:
+    features, lat_mean = shuffle(features,lat_mean)
+  trainf = features[:int(splitPercentage*len(features))]
+  trainy = lat_mean[:int(splitPercentage*len(features))]
+  testf = features[int(splitPercentage*len(features)):]
+  testy = lat_mean[int(splitPercentage*len(features)):]
   print("================= Dataset Stage ==============")
   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
   trainf = np.reshape(trainf, (trainf.shape[0], trainf.shape[1]*trainf.shape[2]))
@@ -129,23 +132,62 @@ def learn_xgb_model(hardware, maxLayer, lat_mean, features, featuresShape):
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(trainy, trainPredict)
-  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_train.png')
+  plt.savefig(args.name+'/plots/'+hardware+'_'+args.learning_type+'_'+str(splitPercentage)+'_train.png')
 
   r2_score = sklearn.metrics.r2_score(testy, testPredict)
   s_coefficient, pvalue = spearmanr(testy, testPredict)
   writeToFile('Test Score: %f RMSE' % (testScore))
-  writeToFile("The Test R^2 Value for %s: %f"%(hardware, r2_score))
-  writeToFile("The Test Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
+  writeToFile("The R^2 Value for %s: %f"%(hardware, r2_score))
+  writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(testy, testPredict)
-  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_test.png')
+  plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_'+str(1-splitPercentage)+'_test.png')
   return model
+
+def learn_xgb_model_collab(hardware, maxLayer, lat_mean, features, featuresShape, splitPercentage=0.99, shuffleFeatures=True):
+  print('Learning' + hardware)
+  numSample = len(lat_mean)
+  features = features[:numSample]
+  if shuffleFeatures == True:
+    features, lat_mean = shuffle(features,lat_mean)
+  testf = features
+  testy = lat_mean
+  testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
+  results = []
+  index = []
+  for i in range(10, numSample):
+    trainf = features[:i]
+    trainy = lat_mean[:i]
+#   print("================= Dataset Stage ==============")
+#   print(trainf.shape, trainy.shape, testf.shape, testy.shape)
+    trainf = np.reshape(trainf, (trainf.shape[0], trainf.shape[1]*trainf.shape[2]))
+    model = XGBRegressor()
+    model.fit(trainf, trainy)
+    testPredict = model.predict(testf)
+    testScore = math.sqrt(mean_squared_error(testy, testPredict))
+
+    r2_score = sklearn.metrics.r2_score(testy, testPredict)
+    s_coefficient, pvalue = spearmanr(testy, testPredict)
+    results.append(r2_score)
+    index.append(i)
+
+  matplotlib.rcParams['figure.dpi'] = 500
+  plt.figure()
+  plt.xlabel("Number of Datapoints")
+  plt.ylabel("Average R^2")
+  sns.lineplot(index, results)
+  plt.savefig(args.name+'/plots/'+hardware+'_indiLearn.png')
+  f = open(args.name+'/meta/plotdata.txt', a)
+  s1 = ','.join(map(str, index))
+  s2 = ','.join(map(str, results))
+  f.write(hardware+'\n'+s1+'\n'+s2+'\n')
+  f.close()
 
 def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   numSample = len(lat_mean)
@@ -199,8 +241,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(trainy, trainPredict[:,0])
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_train.png')
@@ -213,8 +255,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
   writeToFile("The Spearnman Coefficient and p-value for %s: %f and %f"%(hardware, s_coefficient, pvalue))
 
   plt.figure()
-  plt.xlabel("Actual Latency")
-  plt.ylabel("Predicted Latency")
+  plt.xlabel("Actual Latency (in ms)")
+  plt.ylabel("Predicted Latency (in ms)")
   sns.scatterplot(testy, testPredict[:,0])
   #plt.title(hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
   plt.savefig(args.name+'/plots/'+hardware+"_"+args.learning_type+'_test.png')
@@ -242,8 +284,8 @@ def learn_lstm_model(hardware, maxLayer, lat_mean, features, featuresShape):
     writeToFile("The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
     writeToFile("The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
     plt.figure()
-    plt.xlabel("Actual Latency")
-    plt.ylabel("Predicted Latency")
+    plt.xlabel("Actual Latency (in ms)")
+    plt.ylabel("Predicted Latency (in ms)")
     sns.scatterplot(testy, modeltestPred)
     #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
     plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'.png')
@@ -315,7 +357,7 @@ def sample_hwrepresentation(net_dict, maxSamples):
 def random_indices(maxSamples):
     rand_indices = []
     for i in range(maxSamples):
-        rand_indices.append(random.randint(0,numLatency))
+        rand_indices.append(random.randint(0,numLatency-1))
     return rand_indices
 '''
 Function which computes total MACs of each network and samples maxSamples indices from it based on FLOPS.
@@ -391,74 +433,9 @@ def append_with_net_features(net_dict, hw_features_cncat):
         #print(appended_features, appended_latencies)
     return appended_latencies, appended_features
 
-'''
-Computes Pairwise Mutual Information
-'''
-
-def parallel_mi(i, matShape, stacked_arr, mutualInformationMatrix):
-    for j in range(i, matShape):
-            mutualInformationMatrix[i][j] = mutualInformationMatrix[j][i] = sklearn.metrics.normalized_mutual_info_score(stacked_arr[i], stacked_arr[j])
-
-def mutual_information(net_dict, numSamples):
-    index = 0
-
-    for key in net_dict:
-        net_dict[key][2] = net_dict[key][2][:numLatency,:,:]
-        net_dict[key][1] = net_dict[key][1][:numLatency]
-
-    for key in net_dict:
-        if index == 0:
-            stacked_arr = net_dict[key][1]
-        else:
-            stacked_arr = np.column_stack((stacked_arr, net_dict[key][1]))
-        index+=1
-    matShape = stacked_arr.shape[0]
-    print(stacked_arr.shape)
-    mutualInformationMatrix = np.zeros((matShape,matShape))
-
-    processes = []
-    print("-------------------------------------------Begin PreComputation----------------------------------------------------")
-    for i in range(matShape//100):
-        for j in range(100):
-            p = mp.Process(target=parallel_mi, args=(i*100+j, matShape, stacked_arr, mutualInformationMatrix))
-            processes.append(p)
-            p.start()
-
-        for process in processes:
-            process.join()
-        print("%i Done" %((i+1)*100))
-    print("-------------------------------------------Done PreComputation----------------------------------------------------")
-    val = np.random.randint(0, stacked_arr.shape[0])
-    sel_list = [val]
-    hw_features_cncat = []
-
-    print( " ------------------------------------- Beginning Sampling -------------------")
-    for k in range(numSamples-1):
-        mininfo=1000000000000
-        for l in range(stacked_arr.shape[0]):
-            if l in sel_list:
-                continue
-            temp = mutualInformationMatrix[l][sel_list].sum()
-            if temp < mininfo:
-                mininfo=temp
-                min_index = l
-        sel_list = sel_list + [l]
-
-    print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
-    for key in net_dict:
-        hw_features_per_device = []
-        for j in range(len(sel_list)):
-            hw_features_per_device.append(net_dict[key][1][sel_list[j]])
-        hw_features_cncat.append(hw_features_per_device)
-
-    #If this is not done separately, the code will break
-    for key in net_dict:
-        net_dict[key][1] = np.delete(net_dict[key][1], sel_list, axis=0)
-        net_dict[key][2] = np.delete(net_dict[key][2], sel_list, axis=0)
-
-    return sel_list, hw_features_cncat
 
 def corr_choose(rho, maxSamples, threshold = 0.97, stop_condition = 5, debug=True):
+    elements = [numLatency]
     subset = []
     indices = range(rho.shape[0])
     if debug:
@@ -474,12 +451,21 @@ def corr_choose(rho, maxSamples, threshold = 0.97, stop_condition = 5, debug=Tru
         rho = np.delete(rho, remove_set, axis=0)
         rho = np.delete(rho, remove_set, axis=1)
         indices = np.delete(indices, remove_set)
+        elements.append(rho.shape[0])
         if debug:
             print('Iteration', i, ": Number of remaining vectors", rho.shape[0])
         if len(indices) <= stop_condition:
             break
     if debug:
         print('Chosen networks are ', subset)
+
+    matplotlib.rcParams['figure.dpi'] = 500
+    plt.figure()
+    plt.xlabel('Iterations')
+    plt.ylabel('Number of Networks remaining')
+    # plt.title('Mutual Information Score over iterations')
+    plt.plot(np.arange(len(elements)), elements,'-o')
+    plt.savefig(args.name+'/plots/spearman.png')
     return subset
 
 def corr_eval(rho, subset, threshold = 0.97):
@@ -519,7 +505,6 @@ def spearmanCorr(net_dict, numSamples):
 
     sel_list = corr_choose(rho, numSamples, 0.98)
     print('Evaluation scores is', corr_eval(rho, sel_list, 0.98))
-
     #exit(0)
 
     hw_features_cncat = []
@@ -607,11 +592,7 @@ def chooseFirstNetMI(data):
             maxindex = i
     return maxindex
 
-
-
-
-
-### Prof. Pratyush's MI implementation
+## Mutual Information Implementation
 
 def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
     index = 0
@@ -665,15 +646,15 @@ def mutual_information_v2(net_dict, numSamples, choose_minimal=True):
 
 
     print(" ------------------------------- Done Sampling -----------------------------", len(sel_list))
+    matplotlib.rcParams['figure.dpi'] = 500
     plt.figure()
     plt.xlabel('Iterations')
     plt.ylabel('Mutual Information Score')
-    plt.title('Mutual Information Score over iterations')
+    # plt.title('Mutual Information Score over iterations')
     plt.plot(np.arange(len(max_info_lst)), max_info_lst,'-o')
     plt.savefig(args.name+'/plots/mutual_info_score.png')
     print(max_info_lst)
     print(sel_list)
-
 
     if choose_minimal == True:
         out_index = len(max_info_lst)
@@ -734,108 +715,363 @@ def mutual_info(arr, row_list, nrows, ncols):
 
     return self_info - mutual_info
 
-def learn_individual_models(list_val_dict):
+def learn_individual_models(list_val_dict, splitPercentage=0.99, shuffleFeatures=True):
+    global maxVal
+    ## Identifying the max latency
     for key in list_val_dict:
-      learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], 13)
+        maxValTemp = np.amax(list_val_dict[key][1])
+        if maxValTemp > maxVal:
+            maxVal = maxValTemp
+
+    ##Normalizing the latency by the maxlatency
+    for key in list_val_dict:
+        list_val_dict[key][1] = list_val_dict[key][1] / maxVal
+
+    for key in list_val_dict:
+        if args.model == "lstm":
+            learn_lstm_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2])
+        elif args.model == "xgb":
+            # learn_xgb_model_collab(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
+            learn_xgb_model(key, list_val_dict[key][0], list_val_dict[key][1], list_val_dict[key][2], list_val_dict[key][2].shape[2], splitPercentage, shuffleFeatures)
 
 
 '''
 Holds out one hardware at a time and learns a combined model for the remaining hardware and tries to
 predict for the held-out hardware without any fine-tuning
 '''
+
+def learn_collaborative_models(list_val_dict):
+    final_indices = 0
+    if args.sampling_type == "random":
+        final_indices = random_indices(args.numSamples)
+
+    splitVal = 0.2
+    ### Take a new set and see how it works
+    list_val_dict_set1 = dict(list(list_val_dict.items())[int(0.9*(len(list_val_dict))):])
+    list_val_dict_rem  = dict(list(list_val_dict.items())[:int(0.9*(len(list_val_dict)))])
+
+    ## Split the hardware into a smaller and a larger set
+    list_val_dict_small = dict(list(list_val_dict_rem.items())[:int(splitVal*(len(list_val_dict_rem)))])
+    list_val_dict_large = dict(list(list_val_dict_rem.items())[int(splitVal*(len(list_val_dict_rem))):])
+
+
+    if args.model == "lstm":
+        model, modellist, extractor, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_small, final_indices, args.numSamples)
+    elif args.model == "xgb":
+        model, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_small, final_indices, args.numSamples)
+
+
+    ####### Test Transfer for each hardware #####################
+
+
+    ######## Transfer for the remaining held-out set #############
+
+    list_val_dict_set1, hw_features_cncat = cncatHardwareRep(list_val_dict_set1, final_indices)
+
+    final_lat_set1, final_features_set1 = append_with_net_features(list_val_dict_set1, hw_features_cncat)
+
+    if args.model == "lstm":
+        checkTransfer(final_lat_set1, final_features_set1, model, final_indices, modellist, extractor, hardware="Set1")
+    elif args.model == "xgb":
+        checkTransfer(final_lat_set1, final_features_set1, model, final_indices, hardware="Set1")
+
+    ################### Evaluate how many network inputs are required to learn the same model ###########
+    #for key in list_val_dict_set1:
+    #    for i in range
+
+
+    ################### Fine tune the model with the new batched hardware set ###########################
+
+    ################### Continue this experiment for more batches! ######################################
+
+
+def cncatHardwareRep(net_dict, final_indices):
+    for key in net_dict:
+        net_dict[key][2] = net_dict[key][2][:numLatency,:,:]
+        net_dict[key][1] = net_dict[key][1][:numLatency]
+
+    hw_features_cncat = []
+    for key in net_dict:
+        hw_features_per_device = []
+        for j in range(len(final_indices)):
+            hw_features_per_device.append(net_dict[key][1][final_indices[j]])
+        hw_features_cncat.append(hw_features_per_device)
+
+    #If this is not done separately, the code will break
+    for key in net_dict:
+        net_dict[key][1] = np.delete(net_dict[key][1], final_indices, axis=0)
+        net_dict[key][2] = np.delete(net_dict[key][2], final_indices, axis=0)
+
+    return net_dict, hw_features_cncat
+
+
+def subsetAndLearn(net_dict, final_indices, numSamples):
+
+    if args.sampling_type == 'random':
+        hw_features_cncat = random_sampling(net_dict, final_indices, numSamples)
+    elif args.sampling_type == 'statistical':
+        final_indices, hw_features_cncat = sample_hwrepresentation(net_dict, numSamples)
+    elif args.sampling_type == 'mutual_info_v1':
+        final_indices, hw_features_cncat = mutual_information(net_dict, numSamples)
+    elif args.sampling_type == 'mutual_info_v2':
+        final_indices, hw_features_cncat = mutual_information_v2(net_dict, numSamples, choose_minimal=False)
+    elif args.sampling_type == 'spearmanCorr':
+        final_indices, hw_features_cncat = spearmanCorr(net_dict, numSamples)
+    elif args.sampling_type == 'pearsonCorr':
+        final_indices, hw_features_cncat = pearsonCorr(net_dict, numSamples)
+    else:
+        print("Invalid --sampling_type - Fix")
+        exit(0)
+
+    dumpSelectedNetworks(final_indices)
+    final_lat, final_features = append_with_net_features(net_dict, hw_features_cncat)
+    print(final_lat.shape, final_features.shape)
+    #final_lat = final_lat / np.amax(final_lat)
+    #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
+    files = glob.glob('*.txt')
+    hardware = 'Mixed Model'
+    if args.model=='lstm':
+        model, modellist, extractor = learn_lstm_model(hardware, net_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
+        return model, modellist, extractor, final_indices, final_lat, final_features
+    elif args.model=='xgb':
+        model = learn_xgb_model(hardware, net_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
+        return model, final_indices, final_lat, final_features
+
+
+def checkTransfer(lat, features, model, final_indices, modellist = None, extractor = None, hardware="Mixed Model"):
+
+    global maxVal
+
+    testf = features
+    testy = lat
+
+    if args.model == 'lstm':
+        print(testf.shape, testy.shape)
+
+        testPredict = model.predict(testf)
+        testScore = math.sqrt(mean_squared_error(testy, testPredict))
+        writeToFile('Transfer Test Score: %f RMSE' % (testScore))
+        r2_score = sklearn.metrics.r2_score(testy, testPredict)
+        s_coefficient, pvalue = spearmanr(testy, testPredict)
+        writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
+        writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
+
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testy, testPredict[:,0])
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC.png')
+
+        testPredict = extractor.predict(testf)
+
+        for name, model_lowB in modellist:
+            modeltestPred = model_lowB.predict(testPredict)
+            testScore = math.sqrt(mean_squared_error(testy, modeltestPred))
+            r2_score = sklearn.metrics.r2_score(testy, modeltestPred)
+            s_coefficient, pvalue = spearmanr(testy, modeltestPred)
+            writeToFile('Transfer Test Score with %s : %f RMSE' % (name, testScore))
+            writeToFile("Transfer The R^2 Value with %s for %s: %f"%(hardware, name, r2_score))
+            writeToFile("Transfer The Spearnman Coefficient and p-value for %s with %s : %f and %f"%(hardware, name, s_coefficient, pvalue))
+            plt.figure()
+            plt.xlabel("Actual Latency (in ms)")
+            plt.ylabel("Predicted Latency (in ms)")
+            sns.scatterplot(testy, modeltestPred)
+            #plt.title(name + hardware+' R2: '+str(r2_score)+' SpearVal: '+str(s_coefficient))
+            plt.savefig(args.name+'/plots/'+hardware+args.learning_type+'_'+name+'_Transfer.png')
+
+    elif args.model == 'xgb':
+        testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
+
+        print(testf.shape, testy.shape)
+        testPredict = model.predict(testf)
+        testScore = math.sqrt(mean_squared_error(testy, testPredict))
+        writeToFile('Transfer Test Score: %f RMSE' % (testScore))
+        r2_score = sklearn.metrics.r2_score(testy, testPredict)
+        s_coefficient, pvalue = spearmanr(testy, testPredict)
+        writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
+        writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
+
+        testyPlot = testy * maxVal
+        testPredictPlot = testPredict * maxVal
+        testPlotScore = math.sqrt(mean_squared_error(testyPlot, testPredictPlot))
+        writeToFile('Normalized Transfer Test Score: %f RMSE' % (testPlotScore))
+
+        np.savetxt(args.name+'/meta/'+'testy.txt', testyPlot, delimiter='\n')
+        np.savetxt(args.name+'/meta/'+'testPredict.txt', testPredictPlot, delimiter='\n')
+
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testy, testPredict, s=15)
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC_scaled_down.png')
+
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.scatterplot(testyPlot, testPredictPlot, s=15)
+        #plt.title(hold_out_key+'TPear R2:'+str(r2_score)+' TSpear R2:'+str(s_coefficient))
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFC_Scaled_up.png')
+
+        matplotlib.rcParams['figure.dpi'] = 500
+        plt.figure()
+        plt.xlabel("Actual Latency (in ms)")
+        plt.ylabel("Predicted Latency (in ms)")
+        sns.regplot(x=testyPlot, y=testPredictPlot, scatter_kws={'s':10, 'color':'blue'})
+        plt.savefig(args.name+'/plots/'+hardware+'_transferFCregPlot.png')
+
+        RMSEError(testy, testPredict)
+        calcErrors(testy, testPredict)
+
+
 def learn_combined_models(list_val_dict):
+    final_indices = 0
     if args.sampling_type == 'random':
         final_indices = random_indices(args.numSamples)
+
+    global maxVal
+    ## Identifying the max latency
     for key in list_val_dict:
-        # list_val_dict_local = list_val_dict.copy() #This was creating a shallow copy
-        list_val_dict_local = copy.deepcopy(list_val_dict)
-        hold_out_val = list_val_dict_local[key]
-        hold_out_key = key
-        #print("-------------------Check-------------------: %n ",list_val_dict_local[key][2].shape, list_val_dict[key][2].shape, hold_out_val[2].shape)
-        list_val_dict_local.pop(key)
-        #print("%n", len(list_val_dict_local), len(list_val_dict), key)
-        if args.sampling_type == 'random':
-                hw_features_cncat = random_sampling(list_val_dict_local, final_indices, args.numSamples)
-        elif args.sampling_type == 'statistical':
-                final_indices, hw_features_cncat = sample_hwrepresentation(list_val_dict_local, args.numSamples)
-        elif args.sampling_type == 'mutual_info_v1':
-                final_indices, hw_features_cncat = mutual_information(list_val_dict_local, args.numSamples)
-        elif args.sampling_type == 'mutual_info_v2':
-                final_indices, hw_features_cncat = mutual_information_v2(list_val_dict_local, args.numSamples, choose_minimal=False)
-        elif args.sampling_type == 'spearmanCorr':
-                final_indices, hw_features_cncat = spearmanCorr(list_val_dict_local, args.numSamples)
-        elif args.sampling_type == 'pearsonCorr':
-                final_indices, hw_features_cncat = pearsonCorr(list_val_dict_local, args.numSamples)
-        else:
-                print("Invalid --sampling_type - Fix")
-                exit(0)
+        maxValTemp = np.amax(list_val_dict[key][1])
+        if maxValTemp > maxVal:
+            maxVal = maxValTemp
 
-        dumpSelectedNetworks(final_indices)
-        final_lat, final_features = append_with_net_features(list_val_dict_local, hw_features_cncat)
-        print(final_lat.shape, final_features.shape)
-        #final_lat = final_lat / np.amax(final_lat)
-        #print(list_val_dict[key][0], final_lat.shape, final_features.shape)
-        files = glob.glob('*.txt')
-        files.remove(key)
-        hardware = 'Mixed Without '
-        if args.model=='lstm':
-                model, modellist, extractor = learn_lstm_model(hardware+hold_out_key, list_val_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
-        elif args.model=='xgb':
-                model = learn_xgb_model(hardware+hold_out_key, list_val_dict[files[0]][0], final_lat, final_features, final_features.shape[2])
-        
-        hold_out_val[2] = hold_out_val[2][:numLatency,:,:]
-        hold_out_val[1] = hold_out_val[1][:numLatency]
+    ##Normalizing the latency by the maxlatency
+    for key in list_val_dict:
+        list_val_dict[key][1] = list_val_dict[key][1] / maxVal
 
-        held_out_hw_feature = []
-        for i in range(len(final_indices)):
-                held_out_hw_feature.append(hold_out_val[1][final_indices[i]])
-        hold_out_val[1] = np.delete(hold_out_val[1], final_indices, axis=0)
-        hold_out_val[2] = np.delete(hold_out_val[2], final_indices, axis=0)
+    ## Splitting the dictionary into 70% and 30%
+    list_val_dict_70 = dict(list(list_val_dict.items())[:int(0.7*(len(list_val_dict)))])
+    list_val_dict_30 = dict(list(list_val_dict.items())[int(0.7*(len(list_val_dict))):])
 
-        new_lat_ft = np.tile(held_out_hw_feature, (hold_out_val[2].shape[0], hold_out_val[2].shape[1], 1))
-        appended_features = np.concatenate((hold_out_val[2], new_lat_ft), axis=2)
+    print(len(list_val_dict), len(list_val_dict_70), len(list_val_dict_30))
 
-        features, lat = shuffle(appended_features, hold_out_val[1])
-        trainf = features[:int(0.05*len(features))]
-        trainy = lat[:int(0.05*len(lat))]
-        testf = features[int(0.05*len(features)):]
-        testy = lat[int(0.05*len(features)):]
+    if args.model == "lstm":
+        model, modellist, extractor, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_70, final_indices, args.numSamples)
+    elif args.model == "xgb":
+        model, final_indices, final_lat, final_features = subsetAndLearn(list_val_dict_70, final_indices, args.numSamples)
 
-        if args.model == 'xgb':
-                trainf = np.reshape(trainf, (trainf.shape[0], trainf.shape[1]*trainf.shape[2]))
-                testf  = np.reshape(testf, (testf.shape[0], testf.shape[1]*testf.shape[2]))
+    ######## Transfer for the remaining held-out set #############
 
-                testPredict = model.predict(testf)
-                testScore = math.sqrt(mean_squared_error(testy, testPredict))
-                writeToFile('Transfer Test Score: %f RMSE' % (testScore))
-                r2_score = sklearn.metrics.r2_score(testy, testPredict)
-                s_coefficient, pvalue = spearmanr(testy, testPredict)
-                writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
-                writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
-                dumpTocsV([hold_out_key, r2_score])
-                plt.figure()
-                plt.xlabel("Transfer : Actual Latency")
-                plt.ylabel("Transfer : Predicted Latency")
-                sns.scatterplot(testy, testPredict)
-                plt.savefig(args.name+'/plots/'+hold_out_key+'transfer.png')
+    list_val_dict_30, hw_features_cncat = cncatHardwareRep(list_val_dict_30, final_indices)
+
+    final_lat_30, final_features_30 = append_with_net_features(list_val_dict_30, hw_features_cncat)
+
+    if args.model == "lstm":
+        checkTransfer(final_lat_30, final_features_30, model, final_indices, modellist, extractor)
+    elif args.model == "xgb":
+        checkTransfer(final_lat_30, final_features_30, model, final_indices)
+
+    ########## Calculate Type I and Type II errors ###################
+
+    #calcErrors(testy, testPredict)
 
 
-        elif args.model == 'lstm':
-                print(testf.shape, testy.shape)
+from itertools import product
+from itertools import combinations
+from scipy.spatial import distance
 
-                testPredict = model.predict(testf)
-                testScore = math.sqrt(mean_squared_error(testy, testPredict))
-                writeToFile('Transfer Test Score: %f RMSE' % (testScore))
-                r2_score = sklearn.metrics.r2_score(testy, testPredict)
-                s_coefficient, pvalue = spearmanr(testy, testPredict)
-                writeToFile("The transferred R^2 Value for Held out set is: %f"%(r2_score))
-                writeToFile("The transferred Spearnman Coefficient and p-value for Held-out set is: %f and %f"%(s_coefficient, pvalue))
-                dumpTocsV([hold_out_key, r2_score])
-                plt.figure()
-                plt.xlabel("Transfer : Actual Latency")
-                plt.ylabel("Transfer : Predicted Latency")
-                sns.scatterplot(testy, testPredict[:,0])
-                plt.savefig(args.name+'/plots/'+hold_out_key+'transfer.png')
+def calcErrors(testy, testPredict):
+    global maxVal
+    testy = testy * maxVal
+    testPredict = testPredict * maxVal
+
+    print(testy.shape, testPredict.shape)
+
+    #print(testy, testPredict)
+
+    ## testy has each hardware's latency stacked up - one after the other - first 118, second 118 and so on
+    hardwareRange = int(math.ceil(testy.shape[0] / (numLatency-args.numSamples)))
+    print(hardwareRange)
+
+    networkRange = numLatency - args.numSamples
+
+    type1ErrP = []
+    type2ErrP = []
+
+    for i in range(hardwareRange):
+        testy_hardware = testy[i*networkRange:(i+1)*networkRange]
+        testPredict_hardware = testPredict[i*networkRange:(i+1)*networkRange]
+        #print(testy_hardware.shape, testPredict_hardware.shape)
+
+        c = list(combinations(testy_hardware,2))
+        d = list(combinations(testPredict_hardware, 2))
+        #c = list(product(testy_hardware, testy_hardware))
+        #d = list(product(testPredict_hardware, testPredict_hardware))
+        #print(len(c), len(d))
+
+        #print("================================ Hardware %d =========================="%(i))
+
+        typeThres = 0.1
+
+        distance_testy = np.ones(len(c))
+        distance_testPredict = np.ones(len(d))
+
+        for j in range(distance_testy.shape[0]):
+            distance_testy[j] = distance.euclidean(c[j][0], c[j][1])
+            distance_testPredict[j] = distance.euclidean(d[j][0], d[j][1])
+
+        #print(distance_testy.shape, distance_testPredict.shape)
+
+        type1Err = 0
+        type2Err = 0
+
+        for j in range(distance_testy.shape[0]):
+            dev1 = (distance_testy[j] - distance_testPredict[j]) / distance_testy[j]
+            dev2 = (distance_testPredict[j] - distance_testy[j]) / distance_testPredict[j]
+            if (distance_testy[j] > distance_testPredict[j]) and (dev1 > typeThres):
+                type1Err += 1
+            elif (distance_testPredict[j] > distance_testy[j]) and (dev2 > typeThres):
+                type2Err +=1
+        #print("For Hardware %d - Type1Err Percentage: %f, Type2Err Percentage: %f, Threshold: %f"%(i,(type1Err/distance_testy.shape[0])*100,(type2Err/distance_testy.shape[0])*100, typeThres))
+        type1ErrP.append((type1Err/distance_testy.shape[0])*100)
+        type2ErrP.append((type2Err/distance_testy.shape[0])*100)
+
+    print(mean(type1ErrP), mean(type2ErrP))
+    writeToFile('Type-1 Error: ' +str(mean(type1ErrP)) + '  Type-2 Error: ' +str(mean(type2ErrP)))
+    writeToFileError(type1ErrP, type2ErrP)
+
+def mean_absolute_percentage_error(y_true, y_pred):
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+def RMSEError(testy, testPredict):
+    global maxVal
+    testy = testy * maxVal
+    testPredict = testPredict * maxVal
+
+
+    ## testy has each hardware's latency stacked up - one after the other - first 118, second 118 and so on
+    networkRange = numLatency - args.numSamples
+    hardwareRange = int(math.ceil(testy.shape[0] / networkRange))
+    print(hardwareRange)
+
+    l = []
+    for i in range(hardwareRange):
+        testy_hardware = testy[i*networkRange:(i+1)*networkRange]
+        testPredict_hardware = testPredict[i*networkRange:(i+1)*networkRange]
+        r2_score = sklearn.metrics.r2_score(testy_hardware, testPredict_hardware)
+        rmse = math.sqrt(mean_squared_error(testy_hardware, testPredict_hardware))
+        mape = mean_absolute_percentage_error(testy_hardware, testPredict_hardware)
+        avg = np.mean(testy_hardware)
+        med = np.median(testy_hardware)
+        l.append([r2_score, rmse, np.amin(testy_hardware), np.amax(testy_hardware), avg, med, mape])
+    dumpRMSE(l)
+
+def dumpRMSE(l):
+    meta = open(args.name+'/meta/RMSE.txt', "w")
+    for i in l:
+        s = ','.join(map(str, i))
+        meta.write(s+'\n')
+    meta.close()
+
+def writeToFileError(l1, l2):
+    meta = open(args.name+'/meta/error.txt', "w")
+    for i in range(len(l1)):
+        s = str(l1[i]) + ',' + str(l2[i]) + ',' + '\n'
+        meta.write(s)
+    meta.close()
 
 def writeToFile(stringVal):
     meta = open(args.name+'/meta/metadata.txt', "a")
@@ -854,19 +1090,11 @@ def dumpSelectedNetworks(s):
     file.close()
     print(s)
 
-def dumpTocsV(s):
-    file = open(args.name+'/meta/transferscore.csv', "a")
-    text = ''
-    for i in range(len(s)):
-        text = text + str(s[i]) + ','
-    file.write(text)
-    file.write('\n')
-    file.close()
 
 def main():
     list_val_dict = {}
     features, maxLayers = parse_features()
-    files = glob.glob('*.txt')
+    files = glob.glob('mobileData/*.txt')
     for file in files:
         latency = parse_latency(file)
         tmp_list = []
@@ -881,6 +1109,8 @@ def main():
         learn_individual_models(list_val_dict)
     elif args.learning_type == 'combined':
         learn_combined_models(list_val_dict)
+    elif args.learning_type == 'collaborative':
+        learn_collaborative_models(list_val_dict)
     else:
         print("Invalid --learning_type - Fix")
         exit(0)
@@ -896,7 +1126,7 @@ if __name__ == '__main__':
     np.random.seed(42)
     tf.random.set_seed(42)
     random.seed(42)
-    parser = argparse.ArgumentParser(description = "LSTM Models for Transferrable Cost Models")
+    parser = argparse.ArgumentParser(description = "Generalizable Cost Models")
     parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data. Options are individual, combined', required=True)
     parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are random, statistical, mutual_info_v1, mutual_info_v2, spearmanCorr', required=True)
     parser.add_argument("--name", type=str, help = 'Name of the run', required=True)
