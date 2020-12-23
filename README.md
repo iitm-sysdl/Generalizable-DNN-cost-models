@@ -1,4 +1,5 @@
 # A Case for Generalizable DNN Cost Models for Mobile Devices [[Paper](https://vinodganesan.github.io/files/Generalizable_DNN_Cost_Models_IISWC_2020.pdf)][[Slides](https://slides.com/pratyushkumarpanda/deck/fullscreen?token=QQC26kZT)][[Videos](https://youtu.be/Mh1c-tNWRo)]
+
 ```BibTex
 @inproceedings{ganesan2020case,
   title={A Case for Generalizable DNN Cost Models for Mobile Devices},
@@ -10,19 +11,25 @@
 }
 ```
 ## Desigining generalizable cost model for many devices
+![](figures/overview.png)
+
+## Characterisation Framework
+![](figures/char_framework.png)
 
 ## Use case: Collaborative Workload Characterization
+![](figures/Collaborative.png)
 
-## Collected data visualization
+## Results
+![](figures/Results.png)
 
 ## How to use our generalizable cost model?
+TBD
 
 ### Requirements
+TBD
 
 ## Slides
 [Slides](https://slides.com/pratyushkumarpanda/deck/fullscreen?token=QQC26kZT)
-
-To Do: Get iframe and Embed the slides. 
 
 ## Short Video
 [![short video](https://img.youtube.com/vi/fOcvznSENUU/maxresdefault.jpg)](https://youtu.be/fOcvznSENUU)

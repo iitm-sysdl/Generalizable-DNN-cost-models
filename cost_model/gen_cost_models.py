@@ -1,3 +1,8 @@
+'''
+Authors: Vinod Ganesan, Surya Selvam, Pratyush Kumar
+Email ID: vinodg@cse.iitm.ac.in, selvams@purdue.edu, pratyush@cse.iitm.ac.in
+'''
+
 import keras
 import tensorflow as tf
 from keras.models import Sequential
