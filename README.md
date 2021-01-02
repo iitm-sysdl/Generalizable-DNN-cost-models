@@ -23,13 +23,38 @@
 ![](figures/Results.png)
 
 ## How to use our generalizable cost model?
-TBD
 
-### Requirements
-TBD
+* Generate random efficient networks and generate tflite models.
+
+```bash
+cd char_framework/net_generator/mobileOptGen
+python MobileGen.py
+```
+* Deploy the generated tflite models on Android and measure the inference latency.
+
+```bash
+cd char_framework
+
+```
+
+* Learning a Cost Model
+```bash
+cd cost_model
+python gen_cost_models.py
+```
+
+## Requirements
+
+* Python 3+
+* XGBoost
+* Tensorflow 2+
+* PyTorch
+* ONNX
+* torchprofile
+* Android Studio (For measuring inference latency) 
 
 ## Slides
-[Slides](https://slides.com/pratyushkumarpanda/deck/fullscreen?token=QQC26kZT)
+[![slides](figures/slides.png)](https://slides.com/pratyushkumarpanda/deck/fullscreen?token=QQC26kZT)
 
 ## Short Video
 [![short video](https://img.youtube.com/vi/fOcvznSENUU/maxresdefault.jpg)](https://youtu.be/fOcvznSENUU)
