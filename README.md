@@ -22,20 +22,21 @@
 ## Results
 ![](figures/Results.png)
 
+## Android App
+
+The android app is derived from the basic [pytorch-demo-app](https://github.com/pytorch/android-demo-app/tree/master/PyTorchDemoApp), with custom enhancements and the integration of [tflite-runtime](https://www.tensorflow.org/lite/guide/inference). You can follow the steps provided by PyTorch to build the app. Stay tuned for more details on tweaking the app to generate inference time. 
+
 ## How to use our generalizable cost model?
 
-* Generate random efficient networks and generate tflite models.
+### Generate random efficient networks and generate tflite models.
 
 ```bash
 cd char_framework/net_generator/mobileOptGen
 python MobileGen.py
 ```
-* Deploy the generated tflite models on Android and measure the inference latency.
 
-The android app is derived from the basic [pytorch-demo-app](https://github.com/pytorch/android-demo-app/tree/master/PyTorchDemoApp), with custom enhancements and the integration of [tflite-runtime](https://www.tensorflow.org/lite/guide/inference). You can follow the steps provided by PyTorch to build the app. More details on tweaking the app to generate inference time soon. 
+### Learning a Cost Model
 
-
-* Learning a Cost Model
 ```bash
 cd cost_model
 python gen_cost_models.py --sampling_type SAMPLE --learning_type LEARN  --name NAME  --numSamples SAMPLE --model MODEL 
