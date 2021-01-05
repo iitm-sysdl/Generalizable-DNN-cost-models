@@ -40,8 +40,20 @@ cd char_framework
 * Learning a Cost Model
 ```bash
 cd cost_model
-python gen_cost_models.py
+python gen_cost_models.py --sampling_type SAMPLE --learning_type LEARN  --name NAME  --numSamples SAMPLE --model MODEL 
 ```
+* Command line options
+
+*--sampling\_type* (required): The Sampling type required for choosing the Signature Set. "random", "mutual\_info", "spearmanCorr", and "statistical" are valid choices. 
+
+*--learning_type* (required): The way in which the cost model is trained. "individual", "combined", and "collaborative" are valid choices. 
+
+*--name* (required): Name of the run.
+
+*--numSamples* (required): Number of samples used to form the Signature Set. 
+
+*--model* (required): The cost model used. "xgb" and "lstm" are valid choices. 
+
 
 ## Requirements
 
