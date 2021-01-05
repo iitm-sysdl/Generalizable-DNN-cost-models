@@ -32,10 +32,8 @@ python MobileGen.py
 ```
 * Deploy the generated tflite models on Android and measure the inference latency.
 
-```bash
-cd char_framework
+The android app is derived from the basic [pytorch-demo-app](https://github.com/pytorch/android-demo-app/tree/master/PyTorchDemoApp), with custom enhancements and the integration of [tflite-runtime](https://www.tensorflow.org/lite/guide/inference). You can follow the steps provided by PyTorch to build the app. More details on tweaking the app to generate inference time soon. 
 
-```
 
 * Learning a Cost Model
 ```bash
@@ -44,7 +42,7 @@ python gen_cost_models.py --sampling_type SAMPLE --learning_type LEARN  --name N
 ```
 * Command line options
 
-**--sampling\_type** (required): The Sampling type required for choosing the Signature Set. "random", "mutual\_info", "spearmanCorr", and "statistical" are valid choices. 
+**--sampling\_type** (required): The sampling type required for choosing the Signature Set. "random", "mutual\_info", "spearmanCorr", and "statistical" are valid choices. 
 
 **--learning_type** (required): The way in which the cost model is trained. "individual", "combined", and "collaborative" are valid choices. 
 
