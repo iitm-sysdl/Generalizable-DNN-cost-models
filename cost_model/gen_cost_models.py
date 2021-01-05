@@ -816,9 +816,7 @@ def subsetAndLearn(net_dict, final_indices, numSamples):
         hw_features_cncat = random_sampling(net_dict, final_indices, numSamples)
     elif args.sampling_type == 'statistical':
         final_indices, hw_features_cncat = sample_hwrepresentation(net_dict, numSamples)
-    elif args.sampling_type == 'mutual_info_v1':
-        final_indices, hw_features_cncat = mutual_information(net_dict, numSamples)
-    elif args.sampling_type == 'mutual_info_v2':
+    elif args.sampling_type == 'mutual_info':
         final_indices, hw_features_cncat = mutual_information_v2(net_dict, numSamples, choose_minimal=False)
     elif args.sampling_type == 'spearmanCorr':
         final_indices, hw_features_cncat = spearmanCorr(net_dict, numSamples)
@@ -1132,8 +1130,8 @@ if __name__ == '__main__':
     tf.random.set_seed(42)
     random.seed(42)
     parser = argparse.ArgumentParser(description = "Generalizable Cost Models")
-    parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data. Options are individual, combined', required=True)
-    parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are random, statistical, mutual_info_v1, mutual_info_v2, spearmanCorr', required=True)
+    parser.add_argument("--sampling_type", type = str, help = 'Enter the Sampling Type to be used on the data. Options are random, mutual_info, spearmanCorr, statistical', required=True)
+    parser.add_argument("--learning_type", type = str, help = 'Enter the Learning Type to be used on the data. Options are individual, combined, collaborative', required=True)
     parser.add_argument("--name", type=str, help = 'Name of the run', required=True)
     parser.add_argument("--numSamples", type=int, help = 'Number of Benchmark Samples', required=True)
     parser.add_argument("--model", type=str, help='Model to be trained', required=True)
